@@ -87,6 +87,7 @@ Deno.serve(async (req) => {
   const { data: booking, error: bookingErr } = await supabase.rpc('create_booking', {
     p_slot_id: form.slotId,
     p_program_name: form.programName,
+    p_program_types: form.programTypes || null,
     p_contact_name: form.contactName,
     p_contact_email: form.contactEmail,
     p_phone: form.phone || null,
@@ -149,6 +150,7 @@ Deno.serve(async (req) => {
     <h2>New presentation booking</h2>
     <ul>
       <li><strong>Program:</strong> ${booking.program_name}</li>
+      ${booking.program_types ? `<li><strong>Type:</strong> ${booking.program_types}</li>` : ''}
       <li><strong>Booked by:</strong> ${booking.contact_name} (${booking.contact_email}${booking.phone ? ', ' + booking.phone : ''})</li>
       <li><strong>Date:</strong> ${dateStr}</li>
       <li><strong>Time:</strong> ${timeStr}</li>

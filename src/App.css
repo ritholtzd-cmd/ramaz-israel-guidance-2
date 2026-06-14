@@ -286,6 +286,10 @@
 .checkbox-field input { width: 18px; height: 18px; accent-color: var(--navy); }
 .checkbox-field span { user-select: none; }
 
+.checkgroup { display: grid; gap: 0.5rem; }
+.checkgroup-label { font-size: 0.88rem; color: #374151; }
+.checkgroup-options { display: flex; flex-wrap: wrap; gap: 1.25rem; }
+
 .btn-primary {
   padding: 0.75rem 1rem; background: var(--navy); color: #fff;
   border: none; border-radius: 8px; font: inherit; font-weight: 600; cursor: pointer;

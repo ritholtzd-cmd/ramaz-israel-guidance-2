@@ -10,10 +10,12 @@ import Sidebar from './components/Sidebar'
 import './App.css'
 
 const EMPTY_FORM = {
-  programName: '', contactName: '', contactEmail: '', phone: '',
+  programName: '', programTypes: [], contactName: '', contactEmail: '', phone: '',
   presenterName: '', presenterEmail: '', presenterPhone: '',
   bringingAlum: false, avNeeds: '',
 }
+
+const PROGRAM_TYPES = ['Seminary', 'Yeshiva', 'Other']
 
 const timeFmt = new Intl.DateTimeFormat('en-US', {
   timeZone: 'America/New_York', hour: 'numeric', minute: '2-digit',
@@ -108,6 +110,15 @@ function App() {
     setForm((f) => ({ ...f, [name]: type === 'checkbox' ? checked : value }))
   }
 
+  function toggleProgramType(value) {
+    setForm((f) => ({
+      ...f,
+      programTypes: f.programTypes.includes(value)
+        ? f.programTypes.filter((t) => t !== value)
+        : [...f.programTypes, value],
+    }))
+  }
+
   async function submit(e) {
     e.preventDefault()
     setSubmitting(true)
@@ -168,6 +179,23 @@ function App() {
         </h2>
         <form className="booking-form" onSubmit={submit}>
           <Field label="Program name" name="programName" value={form.programName} onChange={updateField} required />
+
+          <div className="checkgroup">
+            <span className="checkgroup-label">Program type</span>
+            <div className="checkgroup-options">
+              {PROGRAM_TYPES.map((t) => (
+                <label key={t} className="checkbox-field">
+                  <input
+                    type="checkbox"
+                    checked={form.programTypes.includes(t)}
+                    onChange={() => toggleProgramType(t)}
+                  />
+                  <span>{t}</span>
+                </label>
+              ))}
+            </div>
+          </div>
+
           <Field label="Your name" name="contactName" value={form.contactName} onChange={updateField} required />
           <Field label="Email" name="contactEmail" type="email" value={form.contactEmail} onChange={updateField} required />
           <Field label="Phone (optional)" name="phone" type="tel" value={form.phone} onChange={updateField} />
