@@ -1,0 +1,58 @@
+.admin-login {
+  display: grid;
+  gap: 1rem;
+  max-width: 320px;
+}
+.admin-login h2 { margin: 0; color: var(--navy-dark); }
+.admin-login input {
+  padding: 0.6rem 0.7rem;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  font: inherit;
+}
+.admin-login input:focus { outline: 2px solid var(--navy); border-color: var(--navy); }
+
+.admin-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-bottom: 1.25rem;
+}
+.admin-actions { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+.admin-actions .btn-secondary { margin-top: 0; }
+
+.table-wrap { overflow-x: auto; }
+
+.admin-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+}
+.admin-table th {
+  text-align: left;
+  padding: 0.6rem 0.7rem;
+  border-bottom: 2px solid var(--navy);
+  color: var(--navy-dark);
+  white-space: nowrap;
+}
+.admin-table td {
+  padding: 0.6rem 0.7rem;
+  border-bottom: 1px solid var(--line);
+  vertical-align: top;
+}
+.admin-table .muted { font-size: 0.82rem; }
+
+.row-cancelled { opacity: 0.5; }
+.row-cancelled td { text-decoration: line-through; }
+
+.link-cancel {
+  background: none;
+  border: none;
+  color: #b91c1c;
+  cursor: pointer;
+  font: inherit;
+  padding: 0;
+}
+.link-cancel:hover { text-decoration: underline; }
