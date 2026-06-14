@@ -26,6 +26,7 @@ export default function Sidebar({ settings, durationMin }) {
           {durationMin ? `${durationMin} mins` : '45 mins'}
           {settings?.contact_name ? ` · with ${settings.contact_name}` : ''}
         </p>
+        <p className="side-tz">🕒 All times shown in <strong>New York (Eastern)</strong> time, wherever you're booking from.</p>
       </div>
     </aside>
   )

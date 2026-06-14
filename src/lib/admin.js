@@ -22,3 +22,13 @@ export async function adminListBookings(password) {
 export async function adminCancelBooking(password, bookingId) {
   await call(password, 'cancel', { bookingId })
 }
+
+export async function adminCreateBooking(password, fields, sendEmail) {
+  const data = await call(password, 'create', { fields, sendEmail })
+  return data
+}
+
+export async function adminUpdateBooking(password, bookingId, fields, sendEmail) {
+  const data = await call(password, 'update', { bookingId, fields, sendEmail })
+  return data
+}

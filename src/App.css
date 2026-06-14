@@ -88,7 +88,22 @@
   color: var(--navy-dark);
 }
 
-.panel-title { margin: 0 0 1.25rem; }
+.panel-title { margin: 0 0 0.5rem; }
+
+.tz-note {
+  margin: 0 0 1.25rem;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+.side-tz {
+  margin: 0.75rem 0 0;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--line);
+  font-size: 0.8rem;
+  color: var(--muted);
+  line-height: 1.4;
+}
 
 /* ---- picker (calendar + times) ---- */
 .picker-grid {

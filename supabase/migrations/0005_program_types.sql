@@ -67,3 +67,6 @@ $$;
 grant execute on function public.create_booking(
   uuid, text, text, text, text, text, text, text, boolean, text, text
 ) to anon;
+
+-- Force PostgREST to pick up the new column + function immediately.
+notify pgrst, 'reload schema';

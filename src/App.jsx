@@ -238,6 +238,7 @@ function App() {
     panel = (
       <div className="picker">
         <h2 className="panel-title">Select a date &amp; time</h2>
+        <p className="tz-note">All times are <strong>New York (Eastern)</strong> time.</p>
         {loading && <p className="muted">Loading…</p>}
         {loadError && <div className="status pending"><p>{loadError}</p></div>}
         {submitError && <div className="status pending"><p>{submitError}</p></div>}
