@@ -184,8 +184,14 @@ function App() {
             <span>Program</span>
             <select name="programSelection" value={form.programSelection} onChange={updateField} required>
               <option value="">Select a program…</option>
-              {PROGRAMS.map((p) => <option key={p.name} value={p.name}>{p.name}</option>)}
-              <option value={OTHER_PROGRAM}>Other (new program)</option>
+              {[['Yeshiva', 'Yeshivas'], ['Seminary', 'Seminaries'], ['Other', 'Other / Co-ed']].map(([type, label]) => (
+                <optgroup key={type} label={label}>
+                  {PROGRAMS.filter((p) => p.type === type)
+                    .sort((a, b) => a.name.localeCompare(b.name))
+                    .map((p) => <option key={p.name} value={p.name}>{p.name}</option>)}
+                </optgroup>
+              ))}
+              <option value={OTHER_PROGRAM}>Other (new program)…</option>
             </select>
           </label>
 
