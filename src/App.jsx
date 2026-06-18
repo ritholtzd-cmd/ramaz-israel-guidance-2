@@ -7,15 +7,15 @@ import { formatSlotDate, formatSlotTimeRange } from './lib/format'
 import { groupSlotsByDate, parseKey, nyDateKey, durationMinutes } from './lib/dates'
 import Calendar from './components/Calendar'
 import Sidebar from './components/Sidebar'
+import { PROGRAMS, PROGRAM_TYPES, OTHER_PROGRAM } from './lib/programs'
 import './App.css'
 
 const EMPTY_FORM = {
-  programName: '', programTypes: [], contactName: '', contactEmail: '', phone: '',
+  programSelection: '', customProgramName: '', programType: '',
+  contactName: '', contactEmail: '', phone: '',
   presenterName: '', presenterEmail: '', presenterPhone: '',
   bringingAlum: false, avNeeds: '',
 }
-
-const PROGRAM_TYPES = ['Seminary', 'Yeshiva', 'Other']
 
 const timeFmt = new Intl.DateTimeFormat('en-US', {
   timeZone: 'America/New_York', hour: 'numeric', minute: '2-digit',
@@ -110,21 +110,23 @@ function App() {
     setForm((f) => ({ ...f, [name]: type === 'checkbox' ? checked : value }))
   }
 
-  function toggleProgramType(value) {
-    setForm((f) => ({
-      ...f,
-      programTypes: f.programTypes.includes(value)
-        ? f.programTypes.filter((t) => t !== value)
-        : [...f.programTypes, value],
-    }))
-  }
-
   async function submit(e) {
     e.preventDefault()
+    const isOther = form.programSelection === OTHER_PROGRAM
+    if (isOther && (!form.customProgramName.trim() || !form.programType)) {
+      setSubmitError('Please enter the new program name and choose its type.')
+      return
+    }
+    const known = PROGRAMS.find((p) => p.name === form.programSelection)
+    const payload = {
+      ...form,
+      programName: isOther ? form.customProgramName.trim() : form.programSelection,
+      programTypes: isOther ? form.programType : (known?.type ?? ''),
+    }
     setSubmitting(true)
     setSubmitError('')
     try {
-      await createBooking(selectedSlot.id, form)
+      await createBooking(selectedSlot.id, payload)
       setConfirmed(selectedSlot)
       setSelectedSlot(null)
       setSelectedDateKey(null)
@@ -178,23 +180,35 @@ function App() {
           <span>{formatSlotTimeRange(selectedSlot.starts_at, selectedSlot.ends_at)}</span>
         </h2>
         <form className="booking-form" onSubmit={submit}>
-          <Field label="Program name" name="programName" value={form.programName} onChange={updateField} required />
+          <label className="field">
+            <span>Program</span>
+            <select name="programSelection" value={form.programSelection} onChange={updateField} required>
+              <option value="">Select a program…</option>
+              {PROGRAMS.map((p) => <option key={p.name} value={p.name}>{p.name}</option>)}
+              <option value={OTHER_PROGRAM}>Other (new program)</option>
+            </select>
+          </label>
 
-          <div className="checkgroup">
-            <span className="checkgroup-label">Program type</span>
-            <div className="checkgroup-options">
-              {PROGRAM_TYPES.map((t) => (
-                <label key={t} className="checkbox-field">
-                  <input
-                    type="checkbox"
-                    checked={form.programTypes.includes(t)}
-                    onChange={() => toggleProgramType(t)}
-                  />
-                  <span>{t}</span>
-                </label>
-              ))}
-            </div>
-          </div>
+          {form.programSelection === OTHER_PROGRAM ? (
+            <>
+              <Field label="New program name" name="customProgramName" value={form.customProgramName} onChange={updateField} required />
+              <div className="checkgroup">
+                <span className="checkgroup-label">Program type</span>
+                <div className="checkgroup-options">
+                  {PROGRAM_TYPES.map((t) => (
+                    <label key={t} className="checkbox-field">
+                      <input type="radio" name="programType" value={t} checked={form.programType === t} onChange={updateField} />
+                      <span>{t}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+            </>
+          ) : form.programSelection ? (
+            <p className="field-hint">
+              Type: {PROGRAMS.find((p) => p.name === form.programSelection)?.type}
+            </p>
+          ) : null}
 
           <Field label="Your name" name="contactName" value={form.contactName} onChange={updateField} required />
           <Field label="Email" name="contactEmail" type="email" value={form.contactEmail} onChange={updateField} required />

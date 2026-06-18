@@ -14,7 +14,7 @@ export async function createBooking(slotId, form) {
     body: {
       slotId,
       programName: form.programName,
-      programTypes: form.programTypes?.length ? form.programTypes.join(', ') : null,
+      programTypes: form.programTypes || null,
       contactName: form.contactName,
       contactEmail: form.contactEmail,
       phone: form.phone || null,
