@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { isConfigured } from './lib/supabase'
 import {
   adminListBookings, adminCancelBooking, adminCreateBooking, adminUpdateBooking, adminSetEmailEnabled,
+  adminDaySlots, adminBlockDay, adminOpenDay, adminSetSlotStatus,
 } from './lib/admin'
 import { listAvailableSlots } from './lib/availability'
 import { formatSlotDate, formatSlotTimeRange } from './lib/format'
@@ -24,6 +25,12 @@ export default function AdminApp() {
   const [emailEnabled, setEmailEnabled] = useState(true)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+
+  // availability blocking panel
+  const [blockOpen, setBlockOpen] = useState(false)
+  const [blockDate, setBlockDate] = useState('')
+  const [daySlots, setDaySlots] = useState([])
+  const [blockMsg, setBlockMsg] = useState('')
 
   // editor: null | { mode: 'new' } | { mode: 'edit', id }
   const [editor, setEditor] = useState(null)
@@ -113,6 +120,21 @@ export default function AdminApp() {
     try { setEmailEnabled(await adminSetEmailEnabled(password, next)) } catch (err) { alert(err.message) }
   }
 
+  async function loadDay(date) {
+    setBlockDate(date); setDaySlots([]); setBlockMsg('')
+    if (!date) return
+    try { setDaySlots(await adminDaySlots(password, date)) } catch (err) { setBlockMsg(err.message) }
+  }
+  async function blockWholeDay() {
+    try { const n = await adminBlockDay(password, blockDate); setBlockMsg(`Blocked ${n} open slot(s).`); loadDay(blockDate) } catch (err) { alert(err.message) }
+  }
+  async function openWholeDay() {
+    try { const n = await adminOpenDay(password, blockDate); setBlockMsg(`Re-opened ${n} blocked slot(s).`); loadDay(blockDate) } catch (err) { alert(err.message) }
+  }
+  async function toggleSlot(s) {
+    try { await adminSetSlotStatus(password, s.id, s.status === 'blocked' ? 'open' : 'blocked'); loadDay(blockDate) } catch (err) { alert(err.message) }
+  }
+
   function logout() {
     sessionStorage.removeItem(PW_KEY); setAuthed(false); setPassword(''); setBookings([])
   }
@@ -148,6 +170,7 @@ export default function AdminApp() {
         </div>
         <div className="admin-actions">
           <button className="btn-primary btn-sm" onClick={openNew}>+ Add booking</button>
+          <button className="btn-secondary" onClick={() => setBlockOpen((v) => !v)}>Block dates/times</button>
           <button className="btn-secondary" onClick={() => downloadCSV(bookings)}>Download CSV</button>
           <button className={`btn-secondary email-switch ${emailEnabled ? 'on' : 'off'}`} onClick={toggleEmail}>
             Emails: {emailEnabled ? 'ON' : 'OFF'}
@@ -156,6 +179,46 @@ export default function AdminApp() {
           <button className="btn-secondary" onClick={logout}>Sign out</button>
         </div>
       </div>
+
+      {blockOpen && (
+        <div className="editor">
+          <h3>Block dates &amp; times</h3>
+          <p className="muted" style={{ marginTop: 0 }}>
+            Pick a date to block the whole day, or block individual times. Blocked times
+            disappear from the public calendar and can't be booked. Booked slots are left alone.
+          </p>
+          <label className="field" style={{ maxWidth: 240 }}>
+            <span>Date</span>
+            <input type="date" value={blockDate} onChange={(e) => loadDay(e.target.value)} />
+          </label>
+
+          {blockDate && (
+            <>
+              <div className="editor-actions" style={{ marginTop: '1rem' }}>
+                <button className="btn-secondary" onClick={blockWholeDay}>Block whole day</button>
+                <button className="btn-secondary" onClick={openWholeDay}>Re-open whole day</button>
+              </div>
+              {blockMsg && <p className="field-hint" style={{ marginTop: '0.5rem' }}>{blockMsg}</p>}
+
+              <div className="day-slots">
+                {daySlots.length === 0 ? (
+                  <p className="muted">No slots on this date.</p>
+                ) : daySlots.map((s) => (
+                  <div key={s.id} className="day-slot">
+                    <span className="day-slot-time">{formatSlotTimeRange(s.starts_at, s.ends_at)}</span>
+                    <span className={`slot-pill ${s.status}`}>{s.status}</span>
+                    {s.status === 'booked'
+                      ? <span className="muted">booked — can't block</span>
+                      : <button className="link-edit" onClick={() => toggleSlot(s)}>
+                          {s.status === 'blocked' ? 'Unblock' : 'Block'}
+                        </button>}
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
+        </div>
+      )}
 
       {editor && (
         <BookingEditor

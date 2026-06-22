@@ -24,6 +24,24 @@ export async function adminSetEmailEnabled(password, enabled) {
   return data.emailEnabled
 }
 
+// ---- availability blocking ----
+export async function adminDaySlots(password, date) {
+  const data = await call(password, 'day_slots', { date })
+  return data.slots ?? []
+}
+
+export async function adminBlockDay(password, date) {
+  return (await call(password, 'block_day', { date })).count
+}
+
+export async function adminOpenDay(password, date) {
+  return (await call(password, 'open_day', { date })).count
+}
+
+export async function adminSetSlotStatus(password, slotId, status) {
+  await call(password, 'set_slot_status', { slotId, status })
+}
+
 export async function adminCancelBooking(password, bookingId) {
   await call(password, 'cancel', { bookingId })
 }

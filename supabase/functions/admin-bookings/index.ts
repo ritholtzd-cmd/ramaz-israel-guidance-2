@@ -125,5 +125,29 @@ Deno.serve(async (req) => {
     return json({ ok: true, booking, warnings })
   }
 
+  // ---- Availability blocking ----
+  if (action === 'day_slots') {
+    const { data, error } = await supabase.rpc('get_day_slots', { p_date: body.date })
+    if (error) return json({ ok: false, error: error.message })
+    return json({ ok: true, slots: data })
+  }
+
+  if (action === 'block_day' || action === 'open_day') {
+    const from = action === 'block_day' ? 'open' : 'blocked'
+    const to = action === 'block_day' ? 'blocked' : 'open'
+    const { data, error } = await supabase.rpc('set_day_status', { p_date: body.date, p_from: from, p_to: to })
+    if (error) return json({ ok: false, error: error.message })
+    return json({ ok: true, count: data })
+  }
+
+  if (action === 'set_slot_status') {
+    if (!['open', 'blocked'].includes(body.status)) return json({ ok: false, error: 'BAD_STATUS' })
+    // .in() guard: never flip a 'booked' slot.
+    const { error } = await supabase.from('slots')
+      .update({ status: body.status }).eq('id', body.slotId).in('status', ['open', 'blocked'])
+    if (error) return json({ ok: false, error: error.message })
+    return json({ ok: true })
+  }
+
   return json({ ok: false, error: 'UNKNOWN_ACTION' })
 })

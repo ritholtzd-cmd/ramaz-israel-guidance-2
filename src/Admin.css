@@ -60,6 +60,20 @@
 .email-switch.on { border-color: #a7f3d0; color: #065f46; }
 .email-switch.off { border-color: #fca5a5; color: #b91c1c; font-weight: 600; }
 
+.day-slots { display: grid; gap: 0.5rem; margin-top: 1rem; }
+.day-slot {
+  display: flex; align-items: center; gap: 1rem;
+  padding: 0.5rem 0.75rem; border: 1px solid var(--line); border-radius: 8px;
+}
+.day-slot-time { font-weight: 600; color: var(--navy-dark); min-width: 180px; }
+.slot-pill {
+  font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.04em;
+  padding: 0.15rem 0.5rem; border-radius: 999px;
+}
+.slot-pill.open { background: #ecfdf5; color: #065f46; }
+.slot-pill.blocked { background: #fef2f2; color: #b91c1c; }
+.slot-pill.booked { background: #eff6ff; color: #1e40af; }
+
 /* ---- editor ---- */
 .editor {
   border: 1px solid var(--line);
