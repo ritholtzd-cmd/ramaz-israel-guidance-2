@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { isConfigured } from './lib/supabase'
 import { listAvailableSlots } from './lib/availability'
 import { getSettings } from './lib/settings'
@@ -10,11 +10,13 @@ import Sidebar from './components/Sidebar'
 import { PROGRAMS, PROGRAM_TYPES, OTHER_PROGRAM } from './lib/programs'
 import './App.css'
 
+const TURNSTILE_SITE_KEY = import.meta.env.VITE_TURNSTILE_SITE_KEY
+
 const EMPTY_FORM = {
   programSelection: '', customProgramName: '', programType: '',
   contactName: '', contactEmail: '', phone: '',
   presenterName: '', presenterEmail: '', presenterPhone: '',
-  bringingAlum: false, avNeeds: '',
+  bringingAlum: false, avNeeds: '', captchaToken: '',
 }
 
 const timeFmt = new Intl.DateTimeFormat('en-US', {
@@ -109,6 +111,8 @@ function App() {
     const { name, type, value, checked } = e.target
     setForm((f) => ({ ...f, [name]: type === 'checkbox' ? checked : value }))
   }
+
+  const setCaptcha = useCallback((token) => setForm((f) => ({ ...f, captchaToken: token })), [])
 
   async function submit(e) {
     e.preventDefault()
@@ -247,6 +251,8 @@ function App() {
             hint="e.g. projector, sound, microphone — leave blank if none."
           />
 
+          {TURNSTILE_SITE_KEY && <Turnstile siteKey={TURNSTILE_SITE_KEY} onToken={setCaptcha} />}
+
           {submitError && <p className="form-error">{submitError}</p>}
           <button className="btn-primary" type="submit" disabled={submitting}>
             {submitting ? 'Booking…' : 'Confirm booking'}
@@ -318,6 +324,29 @@ function App() {
       </div>
     </main>
   )
+}
+
+// Cloudflare Turnstile widget. Renders once the async script has loaded; calls
+// onToken with the verification token. Dormant unless VITE_TURNSTILE_SITE_KEY is set.
+function Turnstile({ siteKey, onToken }) {
+  const ref = useRef(null)
+  useEffect(() => {
+    let widgetId
+    const render = () => {
+      if (window.turnstile && ref.current) {
+        widgetId = window.turnstile.render(ref.current, { sitekey: siteKey, callback: onToken })
+        return true
+      }
+      return false
+    }
+    let timer
+    if (!render()) timer = setInterval(() => { if (render()) clearInterval(timer) }, 200)
+    return () => {
+      if (timer) clearInterval(timer)
+      if (widgetId && window.turnstile) { try { window.turnstile.remove(widgetId) } catch { /* noop */ } }
+    }
+  }, [siteKey, onToken])
+  return <div className="turnstile" ref={ref} />
 }
 
 function Field({ label, name, value, onChange, type = 'text', required = false, hint }) {

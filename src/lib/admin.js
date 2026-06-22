@@ -16,7 +16,12 @@ async function call(password, action, extra = {}) {
 
 export async function adminListBookings(password) {
   const data = await call(password, 'list')
-  return data.bookings ?? []
+  return { bookings: data.bookings ?? [], emailEnabled: data.emailEnabled !== false }
+}
+
+export async function adminSetEmailEnabled(password, enabled) {
+  const data = await call(password, 'set_email', { enabled })
+  return data.emailEnabled
 }
 
 export async function adminCancelBooking(password, bookingId) {

@@ -293,6 +293,8 @@
 
 .form-divider { border: none; border-top: 1px solid var(--line); margin: 0.25rem 0; }
 
+.turnstile { margin: 0.25rem 0; }
+
 .checkbox-field {
   display: flex;
   align-items: center;

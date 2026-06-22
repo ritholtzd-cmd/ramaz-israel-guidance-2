@@ -57,6 +57,9 @@
 
 .btn-sm { padding: 0.4rem 0.7rem; font-size: 0.9rem; }
 
+.email-switch.on { border-color: #a7f3d0; color: #065f46; }
+.email-switch.off { border-color: #fca5a5; color: #b91c1c; font-weight: 600; }
+
 /* ---- editor ---- */
 .editor {
   border: 1px solid var(--line);

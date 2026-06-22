@@ -23,6 +23,7 @@ export async function createBooking(slotId, form) {
       presenterPhone: form.presenterPhone || null,
       bringingAlum: !!form.bringingAlum,
       avNeeds: form.avNeeds || null,
+      captchaToken: form.captchaToken || null,
     },
   })
 
@@ -34,7 +35,12 @@ export async function createBooking(slotId, form) {
     if (data?.error === 'SLOT_UNAVAILABLE') {
       throw new SlotUnavailableError('That slot was just booked by another school.')
     }
-    throw new Error('Booking failed. Please try again.')
+    const messages = {
+      CAPTCHA_FAILED: 'Please complete the "I\'m human" check and try again.',
+      RATE_LIMITED: 'Too many requests from your network. Please wait a few minutes and try again.',
+      INVALID: 'Please double-check your details and try again.',
+    }
+    throw new Error(messages[data?.error] ?? 'Booking failed. Please try again.')
   }
 
   // `warnings` is non-empty if the booking saved but an email failed to send.

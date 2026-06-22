@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { isConfigured } from './lib/supabase'
 import {
-  adminListBookings, adminCancelBooking, adminCreateBooking, adminUpdateBooking,
+  adminListBookings, adminCancelBooking, adminCreateBooking, adminUpdateBooking, adminSetEmailEnabled,
 } from './lib/admin'
 import { listAvailableSlots } from './lib/availability'
 import { formatSlotDate, formatSlotTimeRange } from './lib/format'
@@ -21,6 +21,7 @@ export default function AdminApp() {
   const [password, setPassword] = useState(sessionStorage.getItem(PW_KEY) ?? '')
   const [authed, setAuthed] = useState(false)
   const [bookings, setBookings] = useState([])
+  const [emailEnabled, setEmailEnabled] = useState(true)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
@@ -35,7 +36,9 @@ export default function AdminApp() {
   async function load(pw) {
     setLoading(true); setError('')
     try {
-      setBookings(await adminListBookings(pw))
+      const { bookings, emailEnabled } = await adminListBookings(pw)
+      setBookings(bookings)
+      setEmailEnabled(emailEnabled)
       setAuthed(true)
       sessionStorage.setItem(PW_KEY, pw)
     } catch (err) {
@@ -104,6 +107,12 @@ export default function AdminApp() {
     try { await adminCancelBooking(password, b.id); load(password) } catch (err) { alert(err.message) }
   }
 
+  async function toggleEmail() {
+    const next = !emailEnabled
+    if (!confirm(next ? 'Turn confirmation emails back ON?' : 'Turn OFF all outbound confirmation emails?')) return
+    try { setEmailEnabled(await adminSetEmailEnabled(password, next)) } catch (err) { alert(err.message) }
+  }
+
   function logout() {
     sessionStorage.removeItem(PW_KEY); setAuthed(false); setPassword(''); setBookings([])
   }
@@ -140,6 +149,9 @@ export default function AdminApp() {
         <div className="admin-actions">
           <button className="btn-primary btn-sm" onClick={openNew}>+ Add booking</button>
           <button className="btn-secondary" onClick={() => downloadCSV(bookings)}>Download CSV</button>
+          <button className={`btn-secondary email-switch ${emailEnabled ? 'on' : 'off'}`} onClick={toggleEmail}>
+            Emails: {emailEnabled ? 'ON' : 'OFF'}
+          </button>
           <button className="btn-secondary" onClick={() => load(password)}>Refresh</button>
           <button className="btn-secondary" onClick={logout}>Sign out</button>
         </div>

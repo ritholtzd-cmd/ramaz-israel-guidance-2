@@ -49,12 +49,18 @@ Deno.serve(async (req) => {
   const action = body.action ?? 'list'
 
   if (action === 'list') {
-    const { data, error } = await supabase
-      .from('bookings')
-      .select('*, slots(starts_at, ends_at)')
-      .order('created_at', { ascending: false })
+    const [{ data, error }, { data: s }] = await Promise.all([
+      supabase.from('bookings').select('*, slots(starts_at, ends_at)').order('created_at', { ascending: false }),
+      supabase.from('settings').select('email_enabled').eq('id', 1).single(),
+    ])
     if (error) return json({ ok: false, error: error.message })
-    return json({ ok: true, bookings: data })
+    return json({ ok: true, bookings: data, emailEnabled: s?.email_enabled !== false })
+  }
+
+  if (action === 'set_email') {
+    const { error } = await supabase.from('settings').update({ email_enabled: !!body.enabled }).eq('id', 1)
+    if (error) return json({ ok: false, error: error.message })
+    return json({ ok: true, emailEnabled: !!body.enabled })
   }
 
   if (action === 'cancel') {
