@@ -23,7 +23,7 @@ export default function Sidebar({ settings, durationMin }) {
           <span className="summary-name">Israel Guidance Presentation</span>
         </div>
         <p className="summary-meta">
-          {durationMin ? `${durationMin} mins` : '45 mins'}
+          {durationMin ? `${durationMin} mins` : '40 mins'}
           {settings?.contact_name ? ` · with ${settings.contact_name}` : ''}
         </p>
         <p className="side-tz">🕒 All times shown in <strong>New York (Eastern)</strong> time, wherever you're booking from.</p>
