@@ -7,7 +7,7 @@ import { formatSlotDate, formatSlotTimeRange } from './lib/format'
 import { groupSlotsByDate, parseKey, nyDateKey, durationMinutes } from './lib/dates'
 import Calendar from './components/Calendar'
 import Sidebar from './components/Sidebar'
-import { PROGRAMS, PROGRAM_TYPES, OTHER_PROGRAM } from './lib/programs'
+import { PROGRAM_TYPES, OTHER_PROGRAM, getPrograms } from './lib/programs'
 import './App.css'
 
 const TURNSTILE_SITE_KEY = import.meta.env.VITE_TURNSTILE_SITE_KEY
@@ -33,6 +33,7 @@ function App() {
   const [selectedDateKey, setSelectedDateKey] = useState(null)
   const [selectedSlot, setSelectedSlot] = useState(null)
 
+  const [programs, setPrograms] = useState([])
   const [form, setForm] = useState(EMPTY_FORM)
   const [submitting, setSubmitting] = useState(false)
   const [submitError, setSubmitError] = useState('')
@@ -63,9 +64,13 @@ function App() {
     setLoading(true)
     setLoadError('')
     try {
-      const [s, sl] = await Promise.all([getSettings(), listAvailableSlots()])
+      // Programs failing to load shouldn't block availability — fall back to [].
+      const [s, sl, progs] = await Promise.all([
+        getSettings(), listAvailableSlots(), getPrograms().catch(() => []),
+      ])
       setSettings(s)
       setSlots(sl)
+      setPrograms(progs)
     } catch (err) {
       setLoadError(err.message ?? 'Could not load availability.')
     } finally {
@@ -121,7 +126,7 @@ function App() {
       setSubmitError('Please enter the new program name and choose its type.')
       return
     }
-    const known = PROGRAMS.find((p) => p.name === form.programSelection)
+    const known = programs.find((p) => p.name === form.programSelection)
     const payload = {
       ...form,
       programName: isOther ? form.customProgramName.trim() : form.programSelection,
@@ -190,7 +195,7 @@ function App() {
               <option value="">Select a program…</option>
               {[['Yeshiva', 'Yeshivas'], ['Seminary', 'Seminaries'], ['Other', 'Other / Co-ed']].map(([type, label]) => (
                 <optgroup key={type} label={label}>
-                  {PROGRAMS.filter((p) => p.type === type)
+                  {programs.filter((p) => p.type === type)
                     .sort((a, b) => a.name.localeCompare(b.name))
                     .map((p) => <option key={p.name} value={p.name}>{p.name}</option>)}
                 </optgroup>
@@ -216,7 +221,7 @@ function App() {
             </>
           ) : form.programSelection ? (
             <p className="field-hint">
-              Type: {PROGRAMS.find((p) => p.name === form.programSelection)?.type}
+              Type: {programs.find((p) => p.name === form.programSelection)?.type}
             </p>
           ) : null}
 

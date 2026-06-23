@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>IT Email — Booking site DNS</title>
+<style>
+  :root { color-scheme: light; }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: #ffffff; color: #000000;
+    font-family: Arial, "Helvetica Neue", Helvetica, sans-serif;
+    font-size: 15px; line-height: 1.5;
+  }
+  .wrap { max-width: 720px; margin: 0 auto; padding: 32px 26px 64px; }
+  p { margin: 0 0 12px; }
+  ul, ol { margin: 0 0 12px; padding-left: 24px; }
+  li { margin: 4px 0; }
+  a { color: #1155cc; }
+  .mono { font-family: "Courier New", monospace; font-size: 13px; word-break: break-all; }
+  .subject { color: #555; font-size: 13px; margin-bottom: 18px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<p class="subject"><strong>Subject:</strong> Re: [#3262] Update on Booking website</p>
+
+<p>Hi Jeffrey,</p>
+
+<p>Thanks again for the guidance. I've now implemented <strong>all the security controls</strong> you asked for before connecting the sending subdomain — quick rundown:</p>
+
+<ul>
+  <li><strong>Automated-submission protection</strong> — Cloudflare Turnstile on the booking form, verified server-side before any booking is accepted.</li>
+  <li><strong>Rate limiting</strong> — per-IP limits (5/hour, 20/day) enforced in the backend.</li>
+  <li><strong>Validation</strong> — all booking requests validated server-side (required fields, email format, length limits, allowed values); the browser is never trusted.</li>
+  <li><strong>Logging/monitoring</strong> — every submission and its email outcome recorded to an audit log table.</li>
+  <li><strong>Kill switch</strong> — staff can disable all outbound email instantly from the admin page, without taking the site down.</li>
+</ul>
+
+<p>I've also put together a short technical write-up (architecture, data model, security) here:
+<a href="https://docs.google.com/document/d/1O4oyJHP1-X4e8Dz9qcDRu0sEGQLnprzBQdCqN37Dl5k/edit?usp=sharing">Israel Guidance Booking — Project Overview</a>
+— and I can add you as a collaborator on the GitHub repo for the full source: <span class="mono">github.com/ritholtzd-cmd/ramaz-israel-guidance-2</span></p>
+
+<p><strong>For sending</strong>, we're using the dedicated transactional service (Resend) on the separate <span class="mono">send.ramaz.org</span> subdomain you suggested — fully isolated from our primary M365 mail. Could you add the following DNS records to <span class="mono">ramaz.org</span> in ZoneEdit? They only authorize Resend to send as the subdomain and won't affect our existing mail, MX, or SPF. <strong>Please add these three; you can skip Resend's "Receiving record" (the inbound-smtp MX) — the app only sends, never receives.</strong></p>
+
+<ol>
+  <li><strong>TXT</strong> — Host <span class="mono">resend._domainkey.send</span> — Value:<br />
+  <span class="mono">p=MIGfMA0GCSqGSIb3DQEBAQUAA4GNADCBiQKBgQDBkJtxbjzQoJ8je+ZTDBrDBGb+1VJ75oeHDDYmVXKpA2hb9MHneoGS5DcKAyhfdGdLXoC4uLSV5dyijarOugD8L2dTI/qrqjK/zzdS3mS3M8SV5I4BsWMfKS32CJHCdT1QS80sXczsBWihkSHr4u4vlc3KKaSzeLmqI4Xvbf0YbwIDAQAB</span></li>
+  <li><strong>MX</strong> — Host <span class="mono">send.send</span> — Value <span class="mono">feedback-smtp.us-east-1.amazonses.com</span> — Priority <span class="mono">10</span></li>
+  <li><strong>TXT</strong> — Host <span class="mono">send.send</span> — Value <span class="mono">v=spf1 include:amazonses.com ~all</span></li>
+</ol>
+
+<p>Once those are in and propagated, I'll verify the domain on our end and we'll be ready to go live. Happy to hop on a call if easier — would love to get this across the finish line today. Thanks so much!</p>
+
+<p>Dani</p>
+
+</div>
+</body>
+</html>

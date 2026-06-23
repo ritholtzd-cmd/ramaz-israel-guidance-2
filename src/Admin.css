@@ -74,6 +74,19 @@
 .slot-pill.blocked { background: #fef2f2; color: #b91c1c; }
 .slot-pill.booked { background: #eff6ff; color: #1e40af; }
 
+/* program management */
+.prog-add { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 1rem; }
+.prog-add input { flex: 1 1 220px; padding: 0.5rem 0.7rem; border: 1px solid #d1d5db; border-radius: 8px; font: inherit; }
+.prog-add select, .prog-row select { padding: 0.45rem 0.5rem; border: 1px solid #d1d5db; border-radius: 8px; font: inherit; }
+.prog-list { display: grid; gap: 0.4rem; max-height: 420px; overflow-y: auto; }
+.prog-row {
+  display: flex; align-items: center; gap: 0.75rem;
+  padding: 0.45rem 0.7rem; border: 1px solid var(--line); border-radius: 8px;
+}
+.prog-name { flex: 1; font-weight: 600; color: var(--navy-dark); }
+.prog-row.archived { opacity: 0.6; }
+.prog-row.archived .prog-name { text-decoration: line-through; }
+
 /* ---- editor ---- */
 .editor {
   border: 1px solid var(--line);

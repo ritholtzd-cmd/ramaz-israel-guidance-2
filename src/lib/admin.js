@@ -42,6 +42,20 @@ export async function adminSetSlotStatus(password, slotId, status) {
   await call(password, 'set_slot_status', { slotId, status })
 }
 
+// ---- program management ----
+export async function adminListPrograms(password) {
+  const data = await call(password, 'programs_list')
+  return data.programs ?? []
+}
+
+export async function adminCreateProgram(password, name, type) {
+  await call(password, 'program_create', { name, type })
+}
+
+export async function adminUpdateProgram(password, id, patch) {
+  await call(password, 'program_update', { id, ...patch })
+}
+
 export async function adminCancelBooking(password, bookingId) {
   await call(password, 'cancel', { bookingId })
 }

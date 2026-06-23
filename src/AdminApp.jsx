@@ -3,6 +3,7 @@ import { isConfigured } from './lib/supabase'
 import {
   adminListBookings, adminCancelBooking, adminCreateBooking, adminUpdateBooking, adminSetEmailEnabled,
   adminDaySlots, adminBlockDay, adminOpenDay, adminSetSlotStatus,
+  adminListPrograms, adminCreateProgram, adminUpdateProgram,
 } from './lib/admin'
 import { listAvailableSlots } from './lib/availability'
 import { formatSlotDate, formatSlotTimeRange } from './lib/format'
@@ -25,6 +26,12 @@ export default function AdminApp() {
   const [emailEnabled, setEmailEnabled] = useState(true)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+
+  // program management panel
+  const [progOpen, setProgOpen] = useState(false)
+  const [programs, setPrograms] = useState([])
+  const [newProgName, setNewProgName] = useState('')
+  const [newProgType, setNewProgType] = useState('Seminary')
 
   // availability blocking panel
   const [blockOpen, setBlockOpen] = useState(false)
@@ -135,6 +142,26 @@ export default function AdminApp() {
     try { await adminSetSlotStatus(password, s.id, s.status === 'blocked' ? 'open' : 'blocked'); loadDay(blockDate) } catch (err) { alert(err.message) }
   }
 
+  async function loadPrograms() {
+    try { setPrograms(await adminListPrograms(password)) } catch (err) { alert(err.message) }
+  }
+  function openPrograms() {
+    const next = !progOpen
+    setProgOpen(next)
+    if (next) loadPrograms()
+  }
+  async function addProgram(e) {
+    e.preventDefault()
+    if (!newProgName.trim()) return
+    try { await adminCreateProgram(password, newProgName, newProgType); setNewProgName(''); loadPrograms() } catch (err) { alert(err.message) }
+  }
+  async function archiveProgram(p) {
+    try { await adminUpdateProgram(password, p.id, { archived: !p.archived }); loadPrograms() } catch (err) { alert(err.message) }
+  }
+  async function changeProgType(p, type) {
+    try { await adminUpdateProgram(password, p.id, { type }); loadPrograms() } catch (err) { alert(err.message) }
+  }
+
   function logout() {
     sessionStorage.removeItem(PW_KEY); setAuthed(false); setPassword(''); setBookings([])
   }
@@ -171,6 +198,7 @@ export default function AdminApp() {
         <div className="admin-actions">
           <button className="btn-primary btn-sm" onClick={openNew}>+ Add booking</button>
           <button className="btn-secondary" onClick={() => setBlockOpen((v) => !v)}>Block dates/times</button>
+          <button className="btn-secondary" onClick={openPrograms}>Manage programs</button>
           <button className="btn-secondary" onClick={() => downloadCSV(bookings)}>Download CSV</button>
           <button className={`btn-secondary email-switch ${emailEnabled ? 'on' : 'off'}`} onClick={toggleEmail}>
             Emails: {emailEnabled ? 'ON' : 'OFF'}
@@ -179,6 +207,39 @@ export default function AdminApp() {
           <button className="btn-secondary" onClick={logout}>Sign out</button>
         </div>
       </div>
+
+      {progOpen && (
+        <div className="editor">
+          <h3>Manage programs</h3>
+          <p className="muted" style={{ marginTop: 0 }}>
+            These are the programs in the booking dropdown. Archive one to hide it from the public
+            form (it stays here and can be restored anytime). New programs are added by booking
+            "Other" too, but you can pre-add them here.
+          </p>
+          <form className="prog-add" onSubmit={addProgram}>
+            <input placeholder="New program name" value={newProgName} onChange={(e) => setNewProgName(e.target.value)} />
+            <select value={newProgType} onChange={(e) => setNewProgType(e.target.value)}>
+              {PROGRAM_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
+            </select>
+            <button className="btn-primary btn-sm" type="submit">Add</button>
+          </form>
+
+          <div className="prog-list">
+            {programs.map((p) => (
+              <div key={p.id} className={`prog-row ${p.archived ? 'archived' : ''}`}>
+                <span className="prog-name">{p.name}</span>
+                <select value={p.type} onChange={(e) => changeProgType(p, e.target.value)}>
+                  {PROGRAM_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
+                </select>
+                {p.archived && <span className="slot-pill blocked">archived</span>}
+                <button className="link-edit" onClick={() => archiveProgram(p)}>
+                  {p.archived ? 'Restore' : 'Archive'}
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {blockOpen && (
         <div className="editor">

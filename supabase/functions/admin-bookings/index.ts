@@ -149,5 +149,33 @@ Deno.serve(async (req) => {
     return json({ ok: true })
   }
 
+  // ---- Program management (the booking dropdown) ----
+  if (action === 'programs_list') {
+    const { data, error } = await supabase.from('programs').select('*').order('type').order('name')
+    if (error) return json({ ok: false, error: error.message })
+    return json({ ok: true, programs: data })
+  }
+
+  if (action === 'program_create') {
+    const name = (body.name ?? '').toString().trim()
+    if (!name || !['Seminary', 'Yeshiva', 'Other'].includes(body.type)) return json({ ok: false, error: 'INVALID' })
+    const { error } = await supabase.from('programs').insert({ name, type: body.type })
+    if (error) return json({ ok: false, error: error.message })
+    return json({ ok: true })
+  }
+
+  if (action === 'program_update') {
+    const patch: Record<string, unknown> = {}
+    if (body.name != null) patch.name = body.name.toString().trim()
+    if (body.type != null) {
+      if (!['Seminary', 'Yeshiva', 'Other'].includes(body.type)) return json({ ok: false, error: 'INVALID' })
+      patch.type = body.type
+    }
+    if (body.archived != null) patch.archived = !!body.archived
+    const { error } = await supabase.from('programs').update(patch).eq('id', body.id)
+    if (error) return json({ ok: false, error: error.message })
+    return json({ ok: true })
+  }
+
   return json({ ok: false, error: 'UNKNOWN_ACTION' })
 })
