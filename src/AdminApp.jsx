@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { isConfigured } from './lib/supabase'
 import {
   adminListBookings, adminCancelBooking, adminCreateBooking, adminUpdateBooking, adminSetEmailEnabled,
@@ -6,17 +6,20 @@ import {
   adminListPrograms, adminCreateProgram, adminUpdateProgram,
 } from './lib/admin'
 import { listAvailableSlots } from './lib/availability'
+import { getPrograms, OTHER_PROGRAM } from './lib/programs'
 import { formatSlotDate, formatSlotTimeRange } from './lib/format'
-import { nyDateKey } from './lib/dates'
+import { nyDateKey, groupSlotsByDate, parseKey } from './lib/dates'
+import Calendar from './components/Calendar'
 import './App.css'
 import './Admin.css'
 
 const PW_KEY = 'ig_admin_pw'
 const PROGRAM_TYPES = ['Seminary', 'Yeshiva', 'Other']
+const adminTimeFmt = new Intl.DateTimeFormat('en-US', { timeZone: 'America/New_York', hour: 'numeric', minute: '2-digit' })
 const EMPTY = {
-  slotId: '', programName: '', programTypes: [], contactName: '', contactEmail: '',
-  phone: '', presenterName: '', presenterEmail: '', presenterPhone: '',
-  bringingAlum: false, avNeeds: '',
+  slotId: '', programChoice: '', programName: '', programType: '',
+  contactName: '', contactEmail: '', phone: '', presenterName: '', presenterEmail: '',
+  presenterPhone: '', bringingAlum: false, avNeeds: '',
 }
 
 export default function AdminApp() {
@@ -44,6 +47,7 @@ export default function AdminApp() {
   const [form, setForm] = useState(EMPTY)
   const [sendEmail, setSendEmail] = useState(false)
   const [openSlots, setOpenSlots] = useState([])
+  const [editorPrograms, setEditorPrograms] = useState([])
   const [saving, setSaving] = useState(false)
   const [editError, setEditError] = useState('')
 
@@ -68,13 +72,15 @@ export default function AdminApp() {
   async function openNew() {
     setForm(EMPTY); setSendEmail(true); setEditError(''); setEditor({ mode: 'new' })
     try { setOpenSlots(await listAvailableSlots()) } catch { setOpenSlots([]) }
+    try { setEditorPrograms(await getPrograms()) } catch { setEditorPrograms([]) }
   }
 
   function openEdit(b) {
     setForm({
       slotId: b.slot_id,
+      programChoice: '',
       programName: b.program_name ?? '',
-      programTypes: b.program_types ? b.program_types.split(',').map((s) => s.trim()) : [],
+      programType: b.program_types ?? '',
       contactName: b.contact_name ?? '',
       contactEmail: b.contact_email ?? '',
       phone: b.phone ?? '',
@@ -90,18 +96,25 @@ export default function AdminApp() {
   }
 
   function set(field, value) { setForm((f) => ({ ...f, [field]: value })) }
-  function toggleType(t) {
-    setForm((f) => ({
-      ...f,
-      programTypes: f.programTypes.includes(t)
-        ? f.programTypes.filter((x) => x !== t) : [...f.programTypes, t],
-    }))
+
+  // New-booking program dropdown: a known program auto-sets its type; "Other"
+  // reveals a custom name + type picker.
+  function pickProgram(value) {
+    if (value === OTHER_PROGRAM) {
+      setForm((f) => ({ ...f, programChoice: value, programName: '', programType: '' }))
+    } else {
+      const p = editorPrograms.find((x) => x.name === value)
+      setForm((f) => ({ ...f, programChoice: value, programName: value, programType: p?.type ?? '' }))
+    }
   }
 
   async function saveEditor(e) {
     e.preventDefault()
+    if (!form.programName.trim() || !form.programType) {
+      setEditError('Please choose a program (and a type for new programs).'); return
+    }
     setSaving(true); setEditError('')
-    const payload = { ...form, programTypes: form.programTypes.join(', ') }
+    const payload = { ...form, programTypes: form.programType }
     try {
       if (editor.mode === 'new') {
         const r = await adminCreateBooking(password, payload, sendEmail)
@@ -283,8 +296,9 @@ export default function AdminApp() {
 
       {editor && (
         <BookingEditor
-          editor={editor} form={form} set={set} toggleType={toggleType}
-          openSlots={openSlots} sendEmail={sendEmail} setSendEmail={setSendEmail}
+          editor={editor} form={form} set={set} pickProgram={pickProgram}
+          programs={editorPrograms} openSlots={openSlots}
+          sendEmail={sendEmail} setSendEmail={setSendEmail}
           onSubmit={saveEditor} onCancel={() => setEditor(null)} saving={saving} error={editError}
         />
       )}
@@ -326,24 +340,64 @@ export default function AdminApp() {
   )
 }
 
-function BookingEditor({ editor, form, set, toggleType, openSlots, sendEmail, setSendEmail, onSubmit, onCancel, saving, error }) {
+function SlotPicker({ openSlots, selectedSlotId, onPick }) {
+  const byDate = useMemo(() => groupSlotsByDate(openSlots), [openSlots])
+  const availableDates = useMemo(() => new Set(byDate.keys()), [byDate])
+  const [view, setView] = useState(null)
+  const [dateKey, setDateKey] = useState(null)
+  useEffect(() => {
+    if (!view && openSlots.length) setView(parseKey(nyDateKey(openSlots[0].starts_at)))
+  }, [openSlots, view])
+  const todayKey = nyDateKey(new Date().toISOString())
+  const daySlots = dateKey ? (byDate.get(dateKey) ?? []) : []
+  function changeMonth(delta) {
+    setView((v) => { const d = new Date(v.year, v.month + delta, 1); return { year: d.getFullYear(), month: d.getMonth() } })
+  }
+  if (!view) return <p className="muted">No open slots available to book.</p>
+  return (
+    <div className="picker-grid">
+      <Calendar
+        year={view.year} month={view.month} availableDates={availableDates}
+        selectedKey={dateKey} todayKey={todayKey} onSelect={setDateKey}
+        onPrev={() => changeMonth(-1)} onNext={() => changeMonth(1)}
+      />
+      <div className="times">
+        {dateKey ? (
+          <>
+            <p className="times-label">{formatSlotDate(daySlots[0].starts_at)}</p>
+            <div className="time-list">
+              {daySlots.map((s) => (
+                <button type="button" key={s.id}
+                  className={`time-btn ${s.id === selectedSlotId ? 'selected' : ''}`}
+                  onClick={() => onPick(s)}>
+                  {adminTimeFmt.format(new Date(s.starts_at))}
+                </button>
+              ))}
+            </div>
+          </>
+        ) : <p className="muted times-hint">Pick a highlighted date to see times.</p>}
+      </div>
+    </div>
+  )
+}
+
+function BookingEditor({ editor, form, set, pickProgram, programs, openSlots, sendEmail, setSendEmail, onSubmit, onCancel, saving, error }) {
   const isNew = editor.mode === 'new'
+  const chosenSlot = openSlots.find((s) => s.id === form.slotId)
   return (
     <form className="editor" onSubmit={onSubmit}>
       <h3>{isNew ? 'Add a booking' : 'Edit booking'}</h3>
 
       {isNew ? (
-        <label className="field">
-          <span>Slot</span>
-          <select value={form.slotId} onChange={(e) => set('slotId', e.target.value)} required>
-            <option value="">Select an open slot…</option>
-            {openSlots.map((s) => (
-              <option key={s.id} value={s.id}>
-                {formatSlotDate(s.starts_at)} · {formatSlotTimeRange(s.starts_at, s.ends_at)}
-              </option>
-            ))}
-          </select>
-        </label>
+        <div className="field">
+          <span>Date &amp; time</span>
+          <SlotPicker openSlots={openSlots} selectedSlotId={form.slotId} onPick={(s) => set('slotId', s.id)} />
+          <p className="field-hint">
+            {chosenSlot
+              ? `Selected: ${formatSlotDate(chosenSlot.starts_at)} · ${formatSlotTimeRange(chosenSlot.starts_at, chosenSlot.ends_at)}`
+              : 'No time selected yet.'}
+          </p>
+        </div>
       ) : (
         <p className="editor-slot">
           {editor.slot ? `${formatSlotDate(editor.slot.starts_at)} · ${formatSlotTimeRange(editor.slot.starts_at, editor.slot.ends_at)}` : ''}
@@ -351,19 +405,51 @@ function BookingEditor({ editor, form, set, toggleType, openSlots, sendEmail, se
         </p>
       )}
 
-      <div className="editor-grid">
-        <label className="field"><span>Program name</span>
-          <input value={form.programName} onChange={(e) => set('programName', e.target.value)} required /></label>
-        <div className="field"><span>Program type</span>
-          <div className="checkgroup-options">
-            {PROGRAM_TYPES.map((t) => (
-              <label key={t} className="checkbox-field">
-                <input type="checkbox" checked={form.programTypes.includes(t)} onChange={() => toggleType(t)} />
-                <span>{t}</span>
-              </label>
-            ))}
-          </div>
+      {/* Program: dropdown + "Other" for new bookings; free text for edits */}
+      {isNew ? (
+        <div className="program-block">
+          <label className="field">
+            <span>Program</span>
+            <select value={form.programChoice} onChange={(e) => pickProgram(e.target.value)} required>
+              <option value="">Select a program…</option>
+              {['Yeshiva', 'Seminary', 'Other'].map((type) => (
+                <optgroup key={type} label={type === 'Other' ? 'Other / Co-ed' : `${type}s`}>
+                  {programs.filter((p) => p.type === type).map((p) => <option key={p.name} value={p.name}>{p.name}</option>)}
+                </optgroup>
+              ))}
+              <option value={OTHER_PROGRAM}>Other (new program)…</option>
+            </select>
+          </label>
+          {form.programChoice === OTHER_PROGRAM && (
+            <>
+              <label className="field"><span>New program name</span>
+                <input value={form.programName} onChange={(e) => set('programName', e.target.value)} required /></label>
+              <div className="field"><span>Program type</span>
+                <div className="checkgroup-options">
+                  {PROGRAM_TYPES.map((t) => (
+                    <label key={t} className="checkbox-field">
+                      <input type="radio" name="adminPType" value={t} checked={form.programType === t} onChange={() => set('programType', t)} />
+                      <span>{t}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+            </>
+          )}
         </div>
+      ) : (
+        <div className="editor-grid">
+          <label className="field"><span>Program name</span>
+            <input value={form.programName} onChange={(e) => set('programName', e.target.value)} required /></label>
+          <label className="field"><span>Program type</span>
+            <select value={form.programType} onChange={(e) => set('programType', e.target.value)}>
+              <option value="">—</option>
+              {PROGRAM_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
+            </select></label>
+        </div>
+      )}
+
+      <div className="editor-grid">
         <label className="field"><span>Contact name</span>
           <input value={form.contactName} onChange={(e) => set('contactName', e.target.value)} required /></label>
         <label className="field"><span>Contact email</span>

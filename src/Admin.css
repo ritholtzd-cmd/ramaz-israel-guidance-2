@@ -87,6 +87,11 @@
 .prog-row.archived { opacity: 0.6; }
 .prog-row.archived .prog-name { text-decoration: line-through; }
 
+/* admin add-booking calendar + program block */
+.editor .time-btn.selected { background: var(--navy); color: #fff; }
+.program-block { display: grid; gap: 1rem; margin-bottom: 1rem; max-width: 460px; }
+.editor .picker-grid { margin-top: 0.4rem; }
+
 /* ---- editor ---- */
 .editor {
   border: 1px solid var(--line);
