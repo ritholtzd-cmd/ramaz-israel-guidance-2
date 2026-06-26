@@ -47,13 +47,15 @@
 .row-cancelled { opacity: 0.5; }
 .row-cancelled td { text-decoration: line-through; }
 
-.row-actions { white-space: nowrap; display: flex; gap: 0.75rem; }
+.row-actions { display: flex; flex-direction: column; gap: 0.4rem; align-items: flex-start; }
 .link-cancel, .link-edit {
-  background: none; border: none; cursor: pointer; font: inherit; padding: 0;
+  cursor: pointer; font: inherit; font-size: 0.82rem; font-weight: 600;
+  padding: 0.3rem 0.65rem; border-radius: 7px; border: 1px solid; white-space: nowrap;
 }
-.link-cancel { color: #b91c1c; }
-.link-edit { color: var(--navy); }
-.link-cancel:hover, .link-edit:hover { text-decoration: underline; }
+.link-edit { color: var(--navy); border-color: var(--navy); background: #fff; }
+.link-edit:hover { background: var(--navy); color: #fff; }
+.link-cancel { color: #b91c1c; border-color: #b91c1c; background: #fff; }
+.link-cancel:hover { background: #b91c1c; color: #fff; }
 
 .btn-sm { padding: 0.4rem 0.7rem; font-size: 0.9rem; }
 
