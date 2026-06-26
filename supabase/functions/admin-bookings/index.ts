@@ -63,6 +63,14 @@ Deno.serve(async (req) => {
     return json({ ok: true, emailEnabled: !!body.enabled })
   }
 
+  if (action === 'delete') {
+    const id = body.bookingId
+    if (!id) return json({ ok: false, error: 'MISSING_BOOKING_ID' })
+    const { error } = await supabase.from('bookings').delete().eq('id', id).eq('status', 'cancelled')
+    if (error) return json({ ok: false, error: error.message })
+    return json({ ok: true })
+  }
+
   if (action === 'cancel') {
     const id = body.bookingId
     if (!id) return json({ ok: false, error: 'MISSING_BOOKING_ID' })
@@ -95,7 +103,13 @@ Deno.serve(async (req) => {
       const taken = error.message?.includes('SLOT_UNAVAILABLE')
       return json({ ok: false, error: taken ? 'SLOT_UNAVAILABLE' : error.message })
     }
-    const warnings = await notifyBooking(supabase, booking, { confirm: !!body.sendEmail, staff: false })
+    if (clean(f.advisorName) || clean(f.advisorPhone)) {
+      await supabase.from('bookings').update({
+        advisor_name: clean(f.advisorName),
+        advisor_phone: clean(f.advisorPhone),
+      }).eq('id', booking.id)
+    }
+    const warnings = await notifyBooking(supabase, booking, { confirm: !!body.sendEmail, staff: true })
     return json({ ok: true, booking, warnings })
   }
 
@@ -116,6 +130,8 @@ Deno.serve(async (req) => {
         presenter_phone: clean(f.presenterPhone),
         bringing_alum: !!f.bringingAlum,
         av_needs: clean(f.avNeeds),
+        advisor_name: clean(f.advisorName),
+        advisor_phone: clean(f.advisorPhone),
       })
       .eq('id', id)
       .select('*')
@@ -175,6 +191,20 @@ Deno.serve(async (req) => {
     const { error } = await supabase.from('programs').update(patch).eq('id', body.id)
     if (error) return json({ ok: false, error: error.message })
     return json({ ok: true })
+  }
+
+  if (action === 'resend_all') {
+    const { data: active, error } = await supabase
+      .from('bookings').select('*').eq('status', 'booked')
+    if (error) return json({ ok: false, error: error.message })
+    let sent = 0
+    const warnings: string[] = []
+    for (const booking of active ?? []) {
+      const w = await notifyBooking(supabase, booking, { confirm: true, staff: false })
+      if (w.length === 0) sent++
+      warnings.push(...w)
+    }
+    return json({ ok: true, sent, total: (active ?? []).length, warnings })
   }
 
   return json({ ok: false, error: 'UNKNOWN_ACTION' })

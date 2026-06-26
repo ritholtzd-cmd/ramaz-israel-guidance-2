@@ -3,7 +3,7 @@ import { isConfigured } from './lib/supabase'
 import {
   adminListBookings, adminCancelBooking, adminCreateBooking, adminUpdateBooking, adminSetEmailEnabled,
   adminDaySlots, adminBlockDay, adminOpenDay, adminSetSlotStatus,
-  adminListPrograms, adminCreateProgram, adminUpdateProgram,
+  adminListPrograms, adminCreateProgram, adminUpdateProgram, adminResendAll, adminDeleteBooking,
 } from './lib/admin'
 import { listAvailableSlots } from './lib/availability'
 import { getPrograms, OTHER_PROGRAM } from './lib/programs'
@@ -19,7 +19,7 @@ const adminTimeFmt = new Intl.DateTimeFormat('en-US', { timeZone: 'America/New_Y
 const EMPTY = {
   slotId: '', programChoice: '', programName: '', programType: '',
   contactName: '', contactEmail: '', phone: '', presenterName: '', presenterEmail: '',
-  presenterPhone: '', bringingAlum: false, avNeeds: '',
+  presenterPhone: '', bringingAlum: false, avNeeds: '', advisorName: '', advisorPhone: '',
 }
 
 export default function AdminApp() {
@@ -89,6 +89,8 @@ export default function AdminApp() {
       presenterPhone: b.presenter_phone ?? '',
       bringingAlum: !!b.bringing_alum,
       avNeeds: b.av_needs ?? '',
+      advisorName: b.advisor_name ?? '',
+      advisorPhone: b.advisor_phone ?? '',
     })
     setSendEmail(false) // default: quiet correction, don't email the program
     setEditError('')
@@ -175,6 +177,20 @@ export default function AdminApp() {
     try { await adminUpdateProgram(password, p.id, { type }); loadPrograms() } catch (err) { alert(err.message) }
   }
 
+  async function deleteBooking(b) {
+    if (!confirm(`Permanently delete the booking for "${b.program_name}"? This cannot be undone.`)) return
+    try { await adminDeleteBooking(password, b.id); load(password) } catch (err) { alert(err.message) }
+  }
+
+  async function resendAll() {
+    const n = bookings.filter((b) => b.status === 'booked').length
+    if (!confirm(`Resend confirmation emails to all ${n} active bookings?`)) return
+    try {
+      const r = await adminResendAll(password)
+      alert(`Sent ${r.sent} of ${r.total} confirmation email(s).${r.warnings?.length ? '\n\nWarnings:\n' + r.warnings.join('\n') : ''}`)
+    } catch (err) { alert(err.message) }
+  }
+
   function logout() {
     sessionStorage.removeItem(PW_KEY); setAuthed(false); setPassword(''); setBookings([])
   }
@@ -197,7 +213,12 @@ export default function AdminApp() {
     )
   }
 
-  const active = bookings.filter((b) => b.status === 'booked')
+  const active = bookings
+    .filter((b) => b.status === 'booked')
+    .sort((a, b) => new Date(a.slots?.starts_at ?? 0) - new Date(b.slots?.starts_at ?? 0))
+  const cancelled = bookings
+    .filter((b) => b.status === 'cancelled')
+    .sort((a, b) => new Date(a.slots?.starts_at ?? 0) - new Date(b.slots?.starts_at ?? 0))
 
   return (
     <Shell>
@@ -303,20 +324,20 @@ export default function AdminApp() {
         />
       )}
 
-      {bookings.length === 0 ? (
-        <p className="muted">No bookings yet.</p>
+      {active.length === 0 ? (
+        <p className="muted">No active bookings yet.</p>
       ) : (
         <div className="table-wrap">
           <table className="admin-table">
             <thead>
               <tr>
                 <th>Date</th><th>Time</th><th>Program</th><th>Type</th>
-                <th>Booked by</th><th>Presenter</th><th>Alum</th><th>AV</th><th>Status</th><th></th>
+                <th>Booked by</th><th>Presenter</th><th>Alum</th><th>AV</th><th></th>
               </tr>
             </thead>
             <tbody>
-              {bookings.map((b) => (
-                <tr key={b.id} className={b.status === 'cancelled' ? 'row-cancelled' : ''}>
+              {active.map((b) => (
+                <tr key={b.id}>
                   <td>{b.slots ? formatSlotDate(b.slots.starts_at) : '—'}</td>
                   <td>{b.slots ? formatSlotTimeRange(b.slots.starts_at, b.slots.ends_at) : '—'}</td>
                   <td>{b.program_name}</td>
@@ -325,16 +346,45 @@ export default function AdminApp() {
                   <td>{b.presenter_name || <span className="muted">(booking contact)</span>}{b.presenter_email ? <><br /><span className="muted">{b.presenter_email}</span></> : ''}</td>
                   <td>{b.bringing_alum ? 'Yes' : 'No'}</td>
                   <td>{b.av_needs || '—'}</td>
-                  <td>{b.status}</td>
                   <td className="row-actions">
                     <button className="link-edit" onClick={() => openEdit(b)}>Edit</button>
-                    {b.status === 'booked' && <button className="link-cancel" onClick={() => cancel(b)}>Cancel</button>}
+                    <button className="link-cancel" onClick={() => cancel(b)}>Cancel</button>
                   </td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
+      )}
+
+      {cancelled.length > 0 && (
+        <>
+          <h3 style={{ marginTop: '2rem', color: 'var(--navy-dark)' }}>Cancelled ({cancelled.length})</h3>
+          <div className="table-wrap">
+            <table className="admin-table">
+              <thead>
+                <tr>
+                  <th>Date</th><th>Time</th><th>Program</th><th>Type</th>
+                  <th>Booked by</th><th></th>
+                </tr>
+              </thead>
+              <tbody>
+                {cancelled.map((b) => (
+                  <tr key={b.id} className="row-cancelled">
+                    <td>{b.slots ? formatSlotDate(b.slots.starts_at) : '—'}</td>
+                    <td>{b.slots ? formatSlotTimeRange(b.slots.starts_at, b.slots.ends_at) : '—'}</td>
+                    <td>{b.program_name}</td>
+                    <td>{b.program_types || '—'}</td>
+                    <td>{b.contact_name}<br /><span className="muted">{b.contact_email}</span></td>
+                    <td className="row-actions">
+                      <button className="link-cancel" onClick={() => deleteBooking(b)}>Delete</button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </>
       )}
     </Shell>
   )
@@ -468,6 +518,10 @@ function BookingEditor({ editor, form, set, pickProgram, programs, openSlots, se
           <input type="checkbox" checked={form.bringingAlum} onChange={(e) => set('bringingAlum', e.target.checked)} />
           <span>Bringing an alum</span>
         </label>
+        <label className="field"><span>Advisor on duty (name)</span>
+          <input value={form.advisorName} onChange={(e) => set('advisorName', e.target.value)} placeholder="e.g. Dani Ritholtz" /></label>
+        <label className="field"><span>Advisor phone</span>
+          <input value={form.advisorPhone} onChange={(e) => set('advisorPhone', e.target.value)} placeholder="e.g. 917-555-1234" /></label>
       </div>
 
       <label className="checkbox-field email-toggle">

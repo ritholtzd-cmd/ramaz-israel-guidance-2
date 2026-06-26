@@ -69,3 +69,11 @@ export async function adminUpdateBooking(password, bookingId, fields, sendEmail)
   const data = await call(password, 'update', { bookingId, fields, sendEmail })
   return data
 }
+
+export async function adminResendAll(password) {
+  return await call(password, 'resend_all')
+}
+
+export async function adminDeleteBooking(password, bookingId) {
+  await call(password, 'delete', { bookingId })
+}
