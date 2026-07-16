@@ -7,6 +7,7 @@
 // Deploy with --no-verify-jwt.
 import { createClient } from 'jsr:@supabase/supabase-js@2'
 import { notifyBooking } from '../_shared/notify.ts'
+import { syncUsSystems } from '../_shared/usSync.ts'
 
 const CORS = {
   'Access-Control-Allow-Origin': '*',
@@ -114,6 +115,9 @@ Deno.serve(async (req) => {
   const emailOn = s?.email_enabled !== false
   const warnings = emailOn ? await notifyBooking(supabase, booking, { confirm: true, staff: true }) : []
   await log('booked', emailOn ? (warnings.length ? 'failed' : 'sent') : 'skipped')
+
+  // 6. Mirror to Ramaz US Systems (sanitized; never blocks the booking).
+  warnings.push(...await syncUsSystems(supabase))
 
   return json({ ok: true, booking, warnings })
 })

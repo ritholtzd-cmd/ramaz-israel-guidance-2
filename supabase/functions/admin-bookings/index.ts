@@ -12,6 +12,7 @@
 // Deploy with --no-verify-jwt.
 import { createClient } from 'jsr:@supabase/supabase-js@2'
 import { notifyBooking } from '../_shared/notify.ts'
+import { syncUsSystems } from '../_shared/usSync.ts'
 
 const CORS = {
   'Access-Control-Allow-Origin': '*',
@@ -81,7 +82,7 @@ Deno.serve(async (req) => {
       .eq('id', id)
     if (error) return json({ ok: false, error: error.message })
     if (b?.slot_id) await supabase.from('slots').update({ status: 'open' }).eq('id', b.slot_id)
-    return json({ ok: true })
+    return json({ ok: true, warnings: await syncUsSystems(supabase) })
   }
 
   if (action === 'create') {
@@ -110,6 +111,7 @@ Deno.serve(async (req) => {
       }).eq('id', booking.id)
     }
     const warnings = await notifyBooking(supabase, booking, { confirm: !!body.sendEmail, staff: true })
+    warnings.push(...await syncUsSystems(supabase))
     return json({ ok: true, booking, warnings })
   }
 
@@ -138,6 +140,7 @@ Deno.serve(async (req) => {
       .single()
     if (error) return json({ ok: false, error: error.message })
     const warnings = await notifyBooking(supabase, booking, { confirm: !!body.sendEmail, staff: false })
+    warnings.push(...await syncUsSystems(supabase))
     return json({ ok: true, booking, warnings })
   }
 

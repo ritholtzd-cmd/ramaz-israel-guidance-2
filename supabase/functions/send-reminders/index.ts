@@ -4,6 +4,7 @@
 // Safe to re-run — tracks sent_at timestamps to avoid duplicates.
 import { createClient } from 'jsr:@supabase/supabase-js@2'
 import { notifyBooking } from '../_shared/notify.ts'
+import { syncUsSystems } from '../_shared/usSync.ts'
 
 const CORS = {
   'Access-Control-Allow-Origin': '*',
@@ -83,5 +84,8 @@ Deno.serve(async (req) => {
     results.day.warnings.push(...warnings)
   }
 
-  return json({ ok: true, results })
+  // Daily self-heal: reconcile the US Systems mirror even if a live push failed.
+  const usSync = await syncUsSystems(supabase)
+
+  return json({ ok: true, results, usSync })
 })
