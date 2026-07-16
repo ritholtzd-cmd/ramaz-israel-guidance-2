@@ -8,7 +8,7 @@ import {
 import { listAvailableSlots } from './lib/availability'
 import { getPrograms, OTHER_PROGRAM } from './lib/programs'
 import { formatSlotDate, formatSlotTimeRange } from './lib/format'
-import { nyDateKey, groupSlotsByDate, parseKey } from './lib/dates'
+import { nyDateKey, groupSlotsByDate, parseKey, dateKey } from './lib/dates'
 import Calendar from './components/Calendar'
 import './App.css'
 import './Admin.css'
@@ -29,6 +29,7 @@ export default function AdminApp() {
   const [emailEnabled, setEmailEnabled] = useState(true)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [viewMode, setViewMode] = useState('list')
 
   // program management panel
   const [progOpen, setProgOpen] = useState(false)
@@ -237,6 +238,9 @@ export default function AdminApp() {
           <button className={`btn-secondary email-switch ${emailEnabled ? 'on' : 'off'}`} onClick={toggleEmail}>
             Emails: {emailEnabled ? 'ON' : 'OFF'}
           </button>
+          <button className="btn-secondary" onClick={() => setViewMode(v => v === 'list' ? 'calendar' : 'list')}>
+            {viewMode === 'list' ? 'Calendar view' : 'List view'}
+          </button>
           <button className="btn-secondary" onClick={() => load(password)}>Refresh</button>
           <button className="btn-secondary" onClick={logout}>Sign out</button>
         </div>
@@ -324,7 +328,9 @@ export default function AdminApp() {
         />
       )}
 
-      {active.length === 0 ? (
+      {viewMode === 'calendar' ? (
+        <AdminCalendar bookings={active} />
+      ) : active.length === 0 ? (
         <p className="muted">No active bookings yet.</p>
       ) : (
         <div className="table-wrap">
@@ -387,6 +393,77 @@ export default function AdminApp() {
         </>
       )}
     </Shell>
+  )
+}
+
+const CAL_MONTHS = [
+  'January', 'February', 'March', 'April', 'May', 'June',
+  'July', 'August', 'September', 'October', 'November', 'December',
+]
+const CAL_DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+
+function AdminCalendar({ bookings }) {
+  const firstBooking = bookings[0]
+  const initial = firstBooking
+    ? { year: new Date(firstBooking.slots.starts_at).getFullYear(), month: new Date(firstBooking.slots.starts_at).getMonth() }
+    : { year: new Date().getFullYear(), month: new Date().getMonth() }
+  const [view, setView] = useState(initial)
+
+  const byDate = useMemo(() => {
+    const map = new Map()
+    bookings.forEach((b) => {
+      if (!b.slots) return
+      const key = nyDateKey(b.slots.starts_at)
+      if (!map.has(key)) map.set(key, [])
+      map.get(key).push(b)
+    })
+    return map
+  }, [bookings])
+
+  const { year, month } = view
+  function changeMonth(delta) {
+    setView((v) => {
+      const d = new Date(v.year, v.month + delta, 1)
+      return { year: d.getFullYear(), month: d.getMonth() }
+    })
+  }
+
+  const startWeekday = new Date(year, month, 1).getDay()
+  const daysInMonth = new Date(year, month + 1, 0).getDate()
+  const todayKey = nyDateKey(new Date().toISOString())
+  const cells = []
+  for (let i = 0; i < startWeekday; i++) cells.push(null)
+  for (let d = 1; d <= daysInMonth; d++) cells.push(d)
+
+  return (
+    <div className="admin-cal">
+      <div className="cal-head">
+        <span className="cal-title">{CAL_MONTHS[month]} <span className="cal-year">{year}</span></span>
+        <div className="cal-nav">
+          <button type="button" aria-label="Previous month" onClick={() => changeMonth(-1)}>‹</button>
+          <button type="button" aria-label="Next month" onClick={() => changeMonth(1)}>›</button>
+        </div>
+      </div>
+      <div className="admin-cal-grid">
+        {CAL_DAYS.map((d) => <span key={d} className="admin-cal-weekday">{d}</span>)}
+        {cells.map((day, i) => {
+          if (day === null) return <div key={`e-${i}`} className="admin-cal-cell empty" />
+          const key = dateKey(year, month, day)
+          const dayBookings = byDate.get(key) ?? []
+          return (
+            <div key={key} className={`admin-cal-cell${key === todayKey ? ' today' : ''}${dayBookings.length ? ' has-bookings' : ''}`}>
+              <span className="admin-cal-num">{day}</span>
+              {dayBookings.map((b) => (
+                <div key={b.id} className={`admin-cal-chip type-${(b.program_types || 'other').toLowerCase()}`}>
+                  <span className="chip-time">{adminTimeFmt.format(new Date(b.slots.starts_at))}</span>
+                  <span className="chip-name">{b.program_name}</span>
+                </div>
+              ))}
+            </div>
+          )
+        })}
+      </div>
+    </div>
   )
 }
 
