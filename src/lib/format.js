@@ -23,8 +23,20 @@ const endTimeFmt = new Intl.DateTimeFormat('en-US', {
   timeZoneName: 'short',
 })
 
+const shortDateFmt = new Intl.DateTimeFormat('en-US', {
+  timeZone: TZ,
+  weekday: 'short',
+  month: 'short',
+  day: 'numeric',
+  year: 'numeric',
+})
+
 export function formatSlotDate(iso) {
   return dateFmt.format(new Date(iso))
+}
+
+export function formatSlotDateShort(iso) {
+  return shortDateFmt.format(new Date(iso))
 }
 
 export function formatSlotTimeRange(startIso, endIso) {

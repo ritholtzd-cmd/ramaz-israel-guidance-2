@@ -43,6 +43,12 @@
   vertical-align: top;
 }
 .admin-table .muted { font-size: 0.82rem; }
+.admin-table td { overflow-wrap: anywhere; }
+
+.cell-when { white-space: nowrap; }
+.cell-when .when-date { display: block; font-weight: 600; color: var(--navy-dark); }
+.cell-when .when-time { display: block; font-size: 0.82rem; }
+.cell-notes .note-line { display: block; font-size: 0.85rem; }
 
 .row-cancelled { opacity: 0.5; }
 .row-cancelled td { text-decoration: line-through; }

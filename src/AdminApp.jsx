@@ -7,7 +7,7 @@ import {
 } from './lib/admin'
 import { listAvailableSlots } from './lib/availability'
 import { getPrograms, OTHER_PROGRAM } from './lib/programs'
-import { formatSlotDate, formatSlotTimeRange } from './lib/format'
+import { formatSlotDate, formatSlotDateShort, formatSlotTimeRange } from './lib/format'
 import { nyDateKey, groupSlotsByDate, parseKey, dateKey } from './lib/dates'
 import Calendar from './components/Calendar'
 import './App.css'
@@ -351,7 +351,7 @@ export default function AdminApp() {
           return (
             <button key={t} className={`type-filter-btn${typeFilter === t ? ' active' : ''}`}
               onClick={() => setTypeFilter(t)}>
-              {t === 'Other' ? 'Other / Co-ed' : t === 'All' ? 'All' : `${t}s`} ({count})
+              {t === 'Other' ? 'Other / Co-ed' : t === 'Seminary' ? 'Seminaries' : t === 'Yeshiva' ? 'Yeshivas' : 'All'} ({count})
             </button>
           )
         })}
@@ -366,21 +366,32 @@ export default function AdminApp() {
           <table className="admin-table">
             <thead>
               <tr>
-                <th>Date</th><th>Time</th><th>Program</th><th>Type</th>
-                <th>Booked by</th><th>Presenter</th><th>Alum</th><th>AV</th><th></th>
+                <th>When</th><th>Program</th>
+                <th>Booked by</th><th>Presenter</th><th>Notes</th><th></th>
               </tr>
             </thead>
             <tbody>
               {shown.map((b) => (
                 <tr key={b.id}>
-                  <td>{b.slots ? formatSlotDate(b.slots.starts_at) : '—'}</td>
-                  <td>{b.slots ? formatSlotTimeRange(b.slots.starts_at, b.slots.ends_at) : '—'}</td>
-                  <td>{b.program_name}</td>
-                  <td>{b.program_types || '—'}</td>
+                  <td className="cell-when">
+                    {b.slots ? (
+                      <>
+                        <span className="when-date">{formatSlotDateShort(b.slots.starts_at)}</span>
+                        <span className="when-time muted">{formatSlotTimeRange(b.slots.starts_at, b.slots.ends_at)}</span>
+                      </>
+                    ) : '—'}
+                  </td>
+                  <td>
+                    {b.program_name}
+                    {b.program_types && <><br /><span className={`type-pill type-${b.program_types.toLowerCase()}`}>{b.program_types}</span></>}
+                  </td>
                   <td>{b.contact_name}<br /><span className="muted">{b.contact_email}{b.phone ? ` · ${b.phone}` : ''}</span></td>
                   <td>{b.presenter_name || <span className="muted">(booking contact)</span>}{b.presenter_email ? <><br /><span className="muted">{b.presenter_email}</span></> : ''}</td>
-                  <td>{b.bringing_alum ? 'Yes' : 'No'}</td>
-                  <td>{b.av_needs || '—'}</td>
+                  <td className="cell-notes">
+                    {b.bringing_alum && <span className="note-line">Bringing an alum</span>}
+                    {b.av_needs && <span className="note-line muted">AV: {b.av_needs}</span>}
+                    {!b.bringing_alum && !b.av_needs && '—'}
+                  </td>
                   <td className="row-actions">
                     <button className="link-edit" onClick={() => openEdit(b)}>Edit</button>
                     <button className="link-cancel" onClick={() => cancel(b)}>Cancel</button>
@@ -399,15 +410,21 @@ export default function AdminApp() {
             <table className="admin-table">
               <thead>
                 <tr>
-                  <th>Date</th><th>Time</th><th>Program</th><th>Type</th>
+                  <th>When</th><th>Program</th><th>Type</th>
                   <th>Booked by</th><th></th>
                 </tr>
               </thead>
               <tbody>
                 {cancelled.map((b) => (
                   <tr key={b.id} className="row-cancelled">
-                    <td>{b.slots ? formatSlotDate(b.slots.starts_at) : '—'}</td>
-                    <td>{b.slots ? formatSlotTimeRange(b.slots.starts_at, b.slots.ends_at) : '—'}</td>
+                    <td className="cell-when">
+                      {b.slots ? (
+                        <>
+                          <span className="when-date">{formatSlotDateShort(b.slots.starts_at)}</span>
+                          <span className="when-time muted">{formatSlotTimeRange(b.slots.starts_at, b.slots.ends_at)}</span>
+                        </>
+                      ) : '—'}
+                    </td>
                     <td>{b.program_name}</td>
                     <td>{b.program_types || '—'}</td>
                     <td>{b.contact_name}<br /><span className="muted">{b.contact_email}</span></td>
