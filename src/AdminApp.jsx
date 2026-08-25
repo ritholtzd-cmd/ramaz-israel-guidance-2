@@ -17,7 +17,7 @@ const PW_KEY = 'ig_admin_pw'
 const PROGRAM_TYPES = ['Seminary', 'Yeshiva', 'Other']
 const adminTimeFmt = new Intl.DateTimeFormat('en-US', { timeZone: 'America/New_York', hour: 'numeric', minute: '2-digit' })
 const EMPTY = {
-  slotId: '', programChoice: '', programName: '', programType: '',
+  slotId: '', newSlotId: '', programChoice: '', programName: '', programType: '',
   contactName: '', contactEmail: '', phone: '', presenterName: '', presenterEmail: '',
   presenterPhone: '', bringingAlum: false, avNeeds: '', advisorName: '', advisorPhone: '',
 }
@@ -30,6 +30,7 @@ export default function AdminApp() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [viewMode, setViewMode] = useState('list')
+  const [typeFilter, setTypeFilter] = useState('All')
 
   // program management panel
   const [progOpen, setProgOpen] = useState(false)
@@ -76,9 +77,10 @@ export default function AdminApp() {
     try { setEditorPrograms(await getPrograms()) } catch { setEditorPrograms([]) }
   }
 
-  function openEdit(b) {
+  async function openEdit(b) {
     setForm({
       slotId: b.slot_id,
+      newSlotId: '',
       programChoice: '',
       programName: b.program_name ?? '',
       programType: b.program_types ?? '',
@@ -96,6 +98,7 @@ export default function AdminApp() {
     setSendEmail(false) // default: quiet correction, don't email the program
     setEditError('')
     setEditor({ mode: 'edit', id: b.id, slot: b.slots })
+    try { setOpenSlots(await listAvailableSlots()) } catch { setOpenSlots([]) }
   }
 
   function set(field, value) { setForm((f) => ({ ...f, [field]: value })) }
@@ -128,7 +131,7 @@ export default function AdminApp() {
       setEditor(null)
       load(password)
     } catch (err) {
-      setEditError(err.message)
+      setEditError(err.message === 'SLOT_UNAVAILABLE' ? 'That slot is already booked.' : err.message)
     } finally { setSaving(false) }
   }
 
@@ -220,6 +223,10 @@ export default function AdminApp() {
   const cancelled = bookings
     .filter((b) => b.status === 'cancelled')
     .sort((a, b) => new Date(a.slots?.starts_at ?? 0) - new Date(b.slots?.starts_at ?? 0))
+
+  const bookingType = (b) => b.program_types || 'Other'
+  const shown = typeFilter === 'All' ? active : active.filter((b) => bookingType(b) === typeFilter)
+  const nextUp = active.find((b) => b.slots && new Date(b.slots.starts_at) > new Date())
 
   return (
     <Shell>
@@ -328,10 +335,32 @@ export default function AdminApp() {
         />
       )}
 
+      {nextUp && (
+        <div className="next-up">
+          <span className="next-up-label">Next up</span>
+          <strong>{nextUp.program_name}</strong>
+          {nextUp.program_types && <span className={`type-pill type-${nextUp.program_types.toLowerCase()}`}>{nextUp.program_types}</span>}
+          <span>{formatSlotDate(nextUp.slots.starts_at)} · {formatSlotTimeRange(nextUp.slots.starts_at, nextUp.slots.ends_at)}</span>
+          <span className="muted">{nextUp.presenter_name || nextUp.contact_name}</span>
+        </div>
+      )}
+
+      <div className="type-filter">
+        {['All', 'Yeshiva', 'Seminary', 'Other'].map((t) => {
+          const count = t === 'All' ? active.length : active.filter((b) => bookingType(b) === t).length
+          return (
+            <button key={t} className={`type-filter-btn${typeFilter === t ? ' active' : ''}`}
+              onClick={() => setTypeFilter(t)}>
+              {t === 'Other' ? 'Other / Co-ed' : t === 'All' ? 'All' : `${t}s`} ({count})
+            </button>
+          )
+        })}
+      </div>
+
       {viewMode === 'calendar' ? (
-        <AdminCalendar bookings={active} />
-      ) : active.length === 0 ? (
-        <p className="muted">No active bookings yet.</p>
+        <AdminCalendar bookings={shown} />
+      ) : shown.length === 0 ? (
+        <p className="muted">{active.length === 0 ? 'No active bookings yet.' : 'No bookings of this type.'}</p>
       ) : (
         <div className="table-wrap">
           <table className="admin-table">
@@ -342,7 +371,7 @@ export default function AdminApp() {
               </tr>
             </thead>
             <tbody>
-              {active.map((b) => (
+              {shown.map((b) => (
                 <tr key={b.id}>
                   <td>{b.slots ? formatSlotDate(b.slots.starts_at) : '—'}</td>
                   <td>{b.slots ? formatSlotTimeRange(b.slots.starts_at, b.slots.ends_at) : '—'}</td>
@@ -511,6 +540,8 @@ function SlotPicker({ openSlots, selectedSlotId, onPick }) {
 function BookingEditor({ editor, form, set, pickProgram, programs, openSlots, sendEmail, setSendEmail, onSubmit, onCancel, saving, error }) {
   const isNew = editor.mode === 'new'
   const chosenSlot = openSlots.find((s) => s.id === form.slotId)
+  const [showMove, setShowMove] = useState(false)
+  const newSlot = openSlots.find((s) => s.id === form.newSlotId)
   return (
     <form className="editor" onSubmit={onSubmit}>
       <h3>{isNew ? 'Add a booking' : 'Edit booking'}</h3>
@@ -526,10 +557,21 @@ function BookingEditor({ editor, form, set, pickProgram, programs, openSlots, se
           </p>
         </div>
       ) : (
-        <p className="editor-slot">
-          {editor.slot ? `${formatSlotDate(editor.slot.starts_at)} · ${formatSlotTimeRange(editor.slot.starts_at, editor.slot.ends_at)}` : ''}
-          <span className="muted"> (to change the date/time, cancel and re-add)</span>
-        </p>
+        <div className="field">
+          <p className="editor-slot">
+            {editor.slot ? `${formatSlotDate(editor.slot.starts_at)} · ${formatSlotTimeRange(editor.slot.starts_at, editor.slot.ends_at)}` : ''}
+            {newSlot && (
+              <span className="slot-move"> → {formatSlotDate(newSlot.starts_at)} · {formatSlotTimeRange(newSlot.starts_at, newSlot.ends_at)}</span>
+            )}
+          </p>
+          <button type="button" className="btn-secondary btn-sm slot-move-btn"
+            onClick={() => { setShowMove((v) => !v); if (showMove) set('newSlotId', '') }}>
+            {showMove ? 'Keep original date/time' : 'Change date/time'}
+          </button>
+          {showMove && (
+            <SlotPicker openSlots={openSlots} selectedSlotId={form.newSlotId} onPick={(s) => set('newSlotId', s.id)} />
+          )}
+        </div>
       )}
 
       {/* Program: dropdown + "Other" for new bookings; free text for edits */}

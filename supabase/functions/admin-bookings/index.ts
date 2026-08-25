@@ -119,9 +119,25 @@ Deno.serve(async (req) => {
     const id = body.bookingId
     const f = body.fields ?? {}
     if (!id) return json({ ok: false, error: 'MISSING_BOOKING_ID' })
+
+    // Optional date/time move: claim the new slot first (only if still open),
+    // then free the old one. Claim-first means a race can never double-book.
+    let movedSlotId: string | null = null
+    if (f.newSlotId) {
+      const { data: current } = await supabase.from('bookings').select('slot_id').eq('id', id).single()
+      if (current && f.newSlotId !== current.slot_id) {
+        const { data: claimed } = await supabase.from('slots')
+          .update({ status: 'booked' }).eq('id', f.newSlotId).eq('status', 'open').select('id')
+        if (!claimed?.length) return json({ ok: false, error: 'SLOT_UNAVAILABLE' })
+        await supabase.from('slots').update({ status: 'open' }).eq('id', current.slot_id)
+        movedSlotId = f.newSlotId
+      }
+    }
+
     const { data: booking, error } = await supabase
       .from('bookings')
       .update({
+        ...(movedSlotId ? { slot_id: movedSlotId } : {}),
         program_name: clean(f.programName),
         program_types: clean(f.programTypes),
         contact_name: clean(f.contactName),
