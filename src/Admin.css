@@ -152,9 +152,9 @@
   padding: 0.15rem 0.5rem;
   border-radius: 999px;
 }
-.type-pill.type-seminary { background: #dbeafe; color: #1e40af; }
-.type-pill.type-yeshiva  { background: #d1fae5; color: #065f46; }
-.type-pill.type-other    { background: #fef3c7; color: #92400e; }
+.type-pill.type-seminary { background: #fce7f3; color: #9d174d; }
+.type-pill.type-yeshiva  { background: #dbeafe; color: #1e40af; }
+.type-pill.type-other    { background: #d1fae5; color: #065f46; }
 
 /* ---- type filter ---- */
 .type-filter { display: flex; gap: 0.4rem; flex-wrap: wrap; margin-bottom: 1rem; }
@@ -173,6 +173,12 @@
   color: #fff;
   font-weight: 600;
 }
+.type-filter-btn.filter-seminary { background: #fce7f3; border-color: #f9a8d4; color: #9d174d; }
+.type-filter-btn.filter-yeshiva  { background: #dbeafe; border-color: #93c5fd; color: #1e40af; }
+.type-filter-btn.filter-other    { background: #d1fae5; border-color: #6ee7b7; color: #065f46; }
+.type-filter-btn.filter-seminary.active { background: #be185d; border-color: #be185d; color: #fff; }
+.type-filter-btn.filter-yeshiva.active  { background: #1d4ed8; border-color: #1d4ed8; color: #fff; }
+.type-filter-btn.filter-other.active    { background: #047857; border-color: #047857; color: #fff; }
 
 /* ---- edit: move date/time ---- */
 .slot-move { color: #b45309; font-weight: 700; }
@@ -244,9 +250,9 @@
   overflow: hidden;
   text-overflow: ellipsis;
 }
-.admin-cal-chip.type-seminary { background: #dbeafe; color: #1e40af; }
-.admin-cal-chip.type-yeshiva  { background: #d1fae5; color: #065f46; }
-.admin-cal-chip.type-other    { background: #fef3c7; color: #92400e; }
+.admin-cal-chip.type-seminary { background: #fce7f3; color: #9d174d; }
+.admin-cal-chip.type-yeshiva  { background: #dbeafe; color: #1e40af; }
+.admin-cal-chip.type-other    { background: #d1fae5; color: #065f46; }
 
 @media (max-width: 640px) {
   .editor-grid { grid-template-columns: 1fr; }

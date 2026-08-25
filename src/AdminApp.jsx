@@ -349,7 +349,7 @@ export default function AdminApp() {
         {['All', 'Yeshiva', 'Seminary', 'Other'].map((t) => {
           const count = t === 'All' ? active.length : active.filter((b) => bookingType(b) === t).length
           return (
-            <button key={t} className={`type-filter-btn${typeFilter === t ? ' active' : ''}`}
+            <button key={t} className={`type-filter-btn filter-${t.toLowerCase()}${typeFilter === t ? ' active' : ''}`}
               onClick={() => setTypeFilter(t)}>
               {t === 'Other' ? 'Other / Co-ed' : t === 'Seminary' ? 'Seminaries' : t === 'Yeshiva' ? 'Yeshivas' : 'All'} ({count})
             </button>
