@@ -328,6 +328,7 @@
 .status p { margin: 0; font-size: 0.95rem; }
 .status.ok { background: #ecfdf5; border-color: #a7f3d0; color: #065f46; }
 .status.pending { background: #fffbeb; border-color: #fde68a; color: #92400e; }
+.status.error { background: #fef2f2; border-color: #fecaca; color: #b91c1c; }
 
 .detail-list {
   list-style: none; padding: 0; margin: 1.5rem 0;

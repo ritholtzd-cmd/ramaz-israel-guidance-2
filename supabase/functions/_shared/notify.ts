@@ -10,6 +10,7 @@ const STAFF_EMAILS = (Deno.env.get('STAFF_EMAIL') ?? '')
   .split(',').map((s) => s.trim()).filter(Boolean)
 const STAFF_PRIMARY = STAFF_EMAILS[0] ?? ''
 const FROM_EMAIL = Deno.env.get('FROM_EMAIL') ?? 'onboarding@resend.dev'
+const SITE_URL = Deno.env.get('SITE_URL') ?? 'https://ramaz-israel-guidance-2.vercel.app'
 
 const TZ = 'America/New_York'
 const fmtDate = new Intl.DateTimeFormat('en-US', {
@@ -81,6 +82,13 @@ export async function notifyBooking(
       <li><strong>Location:</strong> ${location}</li>
     </ul>`
 
+  const cancelUrl = booking.cancel_token
+    ? `${SITE_URL}/cancel?b=${booking.id}&t=${booking.cancel_token}`
+    : null
+  const cancelLine = cancelUrl
+    ? `Need to cancel? <a href="${cancelUrl}">Cancel your booking online</a>, or reply to this email to reschedule.`
+    : `To cancel or reschedule, reply to this email or contact us at <a href="mailto:${contactEmail}">${contactEmail}</a>.`
+
   if (opts.confirm) {
     const html = `
       <h2>Your Israel Guidance presentation is booked</h2>
@@ -89,7 +97,7 @@ export async function notifyBooking(
       ${detailsHtml}
       <li><strong>Presenter:</strong> ${presenter}</li>
       <p><strong>What to expect:</strong> ${settings?.what_to_expect ?? ''}</p>
-      <p>A calendar invite is attached. To cancel or reschedule, reply to this email or contact ${settings?.contact_name ?? 'us'} at <a href="mailto:${contactEmail}">${contactEmail}</a>.</p>`
+      <p>A calendar invite is attached. ${cancelLine}</p>`
     try {
       await sendEmail(booking.contact_email, 'Your Israel Guidance presentation is booked', html, ics)
     } catch (e) {
@@ -127,6 +135,7 @@ export async function notifyBooking(
       <h3 style="color:#b91c1c;">Important — No Parking at Ramaz</h3>
       <p>Please note that there is <strong>no parking available</strong> at our building. We recommend the <strong>Metropolitan Museum of Art parking garage</strong> (1000 Fifth Avenue, between 80th and 81st Streets) — it's a short, easy walk to Ramaz with convenient in-and-out access.</p>
       <p>Questions? Reply to this email or contact us at <a href="mailto:${contactEmail}">${contactEmail}</a>.</p>
+      <p>${cancelLine}</p>
       <p>We look forward to seeing you!<br>The Ramaz Israel Guidance Team</p>`
     try {
       await sendEmail(booking.contact_email, `One week reminder: Your Israel Guidance presentation at Ramaz`, html)
@@ -157,6 +166,60 @@ export async function notifyBooking(
       await sendEmail(booking.contact_email, `Tomorrow: Your Israel Guidance presentation at Ramaz`, html)
     } catch (e) {
       warnings.push(`day reminder failed: ${(e as Error).message}`)
+    }
+  }
+
+  return warnings
+}
+
+// Sent when a school cancels through the self-service link: a confirmation to
+// the school (respects the email kill switch) and a notice to staff (always).
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export async function notifyCancellation(supabase: any, booking: any): Promise<string[]> {
+  const warnings: string[] = []
+  const slot = booking.slots
+  if (!slot) { warnings.push('slot not found for cancellation email'); return warnings }
+
+  const { data: settings } = await supabase
+    .from('settings').select('contact_email, email_enabled').eq('id', 1).single()
+  const contactEmail = settings?.contact_email ?? STAFF_PRIMARY
+  const dateStr = fmtDate.format(new Date(slot.starts_at))
+  const timeStr = `${fmtTime.format(new Date(slot.starts_at))} – ${fmtTime.format(new Date(slot.ends_at))}`
+
+  if (settings?.email_enabled !== false) {
+    const html = `
+      <h2>Your booking has been cancelled</h2>
+      <p>Hi ${booking.contact_name},</p>
+      <p>This confirms that your Israel Guidance presentation has been cancelled:</p>
+      <ul>
+        <li><strong>Program:</strong> ${booking.program_name}</li>
+        <li><strong>Date:</strong> ${dateStr}</li>
+        <li><strong>Time:</strong> ${timeStr}</li>
+      </ul>
+      <p>The time slot has been reopened. If you'd like to rebook, visit
+      <a href="${SITE_URL}">${SITE_URL}</a> or contact us at
+      <a href="mailto:${contactEmail}">${contactEmail}</a>.</p>`
+    try {
+      await sendEmail(booking.contact_email, 'Your Israel Guidance booking has been cancelled', html)
+    } catch (e) {
+      warnings.push(`cancellation confirmation failed: ${(e as Error).message}`)
+    }
+  }
+
+  if (STAFF_EMAILS.length) {
+    const html = `
+      <h2>Booking cancelled by the school</h2>
+      <ul>
+        <li><strong>Program:</strong> ${booking.program_name}</li>
+        <li><strong>Date:</strong> ${dateStr}</li>
+        <li><strong>Time:</strong> ${timeStr}</li>
+        <li><strong>Contact:</strong> ${booking.contact_name} (${booking.contact_email})</li>
+      </ul>
+      <p>The slot has been reopened automatically.</p>`
+    try {
+      await sendEmail(STAFF_EMAILS, `Cancelled: ${booking.program_name} — ${dateStr}`, html)
+    } catch (e) {
+      warnings.push(`staff cancellation notice failed: ${(e as Error).message}`)
     }
   }
 
