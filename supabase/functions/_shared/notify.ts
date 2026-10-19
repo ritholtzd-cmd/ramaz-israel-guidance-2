@@ -20,13 +20,18 @@ const fmtTime = new Intl.DateTimeFormat('en-US', {
   timeZone: TZ, hour: 'numeric', minute: '2-digit', timeZoneName: 'short',
 })
 
-async function sendEmail(to: string | string[], subject: string, html: string, ics?: string) {
+async function sendEmail(
+  to: string | string[], subject: string, html: string, ics?: string,
+  copies?: { cc?: string[]; bcc?: string[] },
+) {
   const body: Record<string, unknown> = {
     from: `Ramaz Israel Guidance <${FROM_EMAIL}>`,
     to,
     subject,
     html,
   }
+  if (copies?.cc?.length) body.cc = copies.cc
+  if (copies?.bcc?.length) body.bcc = copies.bcc
   if (ics) body.attachments = [{ filename: 'invite.ics', content: encodeBase64(ics) }]
   const res = await fetch('https://api.resend.com/emails', {
     method: 'POST',
@@ -138,7 +143,10 @@ export async function notifyBooking(
       <p>${cancelLine}</p>
       <p>We look forward to seeing you!<br>The Ramaz Israel Guidance Team</p>`
     try {
-      await sendEmail(booking.contact_email, `One week reminder: Your Israel Guidance presentation at Ramaz`, html)
+      // CC the staff inbox so the team sees each reminder go out; BCC the
+      // backup staff address (Ramaz's filter can swallow the CC copy).
+      await sendEmail(booking.contact_email, `One week reminder: Your Israel Guidance presentation at Ramaz`, html,
+        undefined, { cc: STAFF_PRIMARY ? [STAFF_PRIMARY] : [], bcc: STAFF_EMAILS.slice(1) })
     } catch (e) {
       warnings.push(`week reminder failed: ${(e as Error).message}`)
     }
@@ -163,7 +171,8 @@ export async function notifyBooking(
       ${securityHtml}
       <p>See you tomorrow!<br>The Ramaz Israel Guidance Team</p>`
     try {
-      await sendEmail(booking.contact_email, `Tomorrow: Your Israel Guidance presentation at Ramaz`, html)
+      await sendEmail(booking.contact_email, `Tomorrow: Your Israel Guidance presentation at Ramaz`, html,
+        undefined, { cc: STAFF_PRIMARY ? [STAFF_PRIMARY] : [], bcc: STAFF_EMAILS.slice(1) })
     } catch (e) {
       warnings.push(`day reminder failed: ${(e as Error).message}`)
     }
