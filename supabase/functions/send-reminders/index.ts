@@ -21,6 +21,9 @@ function json(body: unknown, status = 200) {
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!
 const SERVICE_ROLE = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
 const ADMIN_PASSWORD = Deno.env.get('ADMIN_PASSWORD') ?? ''
+// Separate secret for the scheduler (pg_cron), so the human admin password
+// never has to be stored inside the database's cron job definition.
+const CRON_SECRET = Deno.env.get('CRON_SECRET') ?? ''
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS })
@@ -29,7 +32,10 @@ Deno.serve(async (req) => {
   let body: Record<string, any>
   try { body = await req.json() } catch { return json({ ok: false, error: 'BAD_REQUEST' }, 400) }
 
-  if (!ADMIN_PASSWORD || body.password !== ADMIN_PASSWORD) {
+  const pw = body.password ?? ''
+  const okAdmin = ADMIN_PASSWORD && pw === ADMIN_PASSWORD
+  const okCron = CRON_SECRET && pw === CRON_SECRET
+  if (!okAdmin && !okCron) {
     return json({ ok: false, error: 'UNAUTHORIZED' })
   }
 
